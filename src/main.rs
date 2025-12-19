@@ -101,7 +101,13 @@ async fn main() {
             let x = offset_x + x as f32 * BLOCK_SIZE;
             let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
 
-            draw_rectangle(x, y, BLOCK_SIZE, BLOCK_SIZE, engine.active_piece.kind.color());
+            draw_rectangle(
+                x,
+                y,
+                BLOCK_SIZE,
+                BLOCK_SIZE,
+                engine.active_piece.kind.color(),
+            );
         }
 
         prev_time = time;
@@ -198,7 +204,10 @@ impl ActivePiece {
     }
 }
 
-fn check_collision(pile: &[[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT], blocks: &[(i32, i32)]) -> bool {
+fn check_collision(
+    pile: &[[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT],
+    blocks: &[(i32, i32)],
+) -> bool {
     for &(x, y) in blocks {
         if x < 0 || x >= PILE_WIDTH as i32 || y < 0 || y >= PILE_HEIGHT as i32 {
             return true;

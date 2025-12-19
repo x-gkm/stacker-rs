@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use macroquad::prelude::*;
 
@@ -28,42 +28,63 @@ enum Orientation {
     W,
 }
 
+struct Engine {
+    pile: [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT],
+    active_piece: ActivePiece,
+    residue_time: u128,
+    gravity_time: i32,
+}
+
+impl Engine {
+    fn new() -> Engine {
+        Engine {
+            pile: [[None; PILE_WIDTH]; PILE_HEIGHT],
+            active_piece: ActivePiece::spawn(Piece::T),
+            residue_time: 0,
+            gravity_time: 0,
+        }
+    }
+
+    fn update(&mut self, delta: Duration) {
+        let nanos = delta.as_nanos() + self.residue_time;
+        self.residue_time = nanos % FRAME_TIME;
+        let frames = nanos / FRAME_TIME;
+        for _ in 0..frames {
+            self.frame();
+        }
+    }
+
+    fn frame(&mut self) {
+        self.gravity_time += 1;
+        if self.gravity_time >= ENGINE_FPS {
+            self.gravity_time -= ENGINE_FPS;
+            let mut branched_piece = self.active_piece.clone();
+            branched_piece.y -= 1;
+            branched_piece.update_blocks();
+            if !check_collision(&self.pile, &branched_piece.blocks) {
+                self.active_piece = branched_piece;
+            }
+        }
+    }
+}
+
 #[macroquad::main("stacker")]
 async fn main() {
-    let mut pile: [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT] = [[None; PILE_WIDTH]; PILE_HEIGHT];
-    let mut active_piece = ActivePiece::spawn(Piece::T);
-
+    let mut engine = Engine::new();
     let mut prev_time = Instant::now();
-    let mut residue_time = 0;
-    let mut gravity_time = 0;
+
     loop {
         let time = Instant::now();
         let delta = time - prev_time;
 
-        let nanos = delta.as_nanos() + residue_time;
-
-        residue_time = nanos % FRAME_TIME;
-        let n = nanos / FRAME_TIME;
-
-        for _ in 0..n {
-            gravity_time += 1;
-            if gravity_time >= ENGINE_FPS {
-                gravity_time -= ENGINE_FPS;
-                let mut branched_piece = active_piece.clone();
-                branched_piece.y -= 1;
-                branched_piece.update_blocks();
-                if !check_collision(&pile, &branched_piece.blocks) {
-                    active_piece = branched_piece;
-                }
-            }
-        }
+        engine.update(delta);
 
         clear_background(WHITE);
 
         let offset_x = (screen_width() - PILE_WIDTH as f32 * BLOCK_SIZE) / 2.;
         let offset_y = (screen_height() - GRID_HEIGHT as f32 * BLOCK_SIZE) / 2.;
 
-        for (y, row) in pile.iter().enumerate() {
+        for (y, row) in engine.pile.iter().enumerate() {
             for (x, &block) in row.iter().enumerate() {
                 let block_x = offset_x + x as f32 * BLOCK_SIZE;
                 let block_y = offset_y + (GRID_HEIGHT - y as i32 - 1) as f32 * BLOCK_SIZE;
@@ -76,11 +97,11 @@ async fn main() {
             }
         }
 
-        for (x, y) in active_piece.blocks {
+        for (x, y) in engine.active_piece.blocks {
             let x = offset_x + x as f32 * BLOCK_SIZE;
             let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
 
-            draw_rectangle(x, y, BLOCK_SIZE, BLOCK_SIZE, active_piece.kind.color());
+            draw_rectangle(x, y, BLOCK_SIZE, BLOCK_SIZE, engine.active_piece.kind.color());
         }
 
         prev_time = time;

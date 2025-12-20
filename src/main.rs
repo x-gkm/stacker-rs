@@ -28,6 +28,20 @@ enum Orientation {
     W,
 }
 
+impl Orientation {
+    fn rotate_cw(&mut self, n: i32) {
+        for _ in 0..n {
+            use Orientation::*;
+            *self = match self {
+                N => E,
+                E => S,
+                S => W,
+                W => N,
+            }
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 struct PlayerActions {
     flip: bool,
@@ -121,6 +135,36 @@ impl Engine {
 
     fn frame(&mut self) {
         let fa = &mut self.frame_actions;
+
+        if fa.flip {
+            fa.flip = false;
+            let mut branched_piece = self.active_piece.clone();
+            branched_piece.orientation.rotate_cw(2);
+            branched_piece.update_blocks();
+            if !check_collision(&self.pile, &branched_piece.blocks) {
+                self.active_piece = branched_piece;
+            }
+        }
+
+        if fa.rotate_left {
+            fa.rotate_left = false;
+            let mut branched_piece = self.active_piece.clone();
+            branched_piece.orientation.rotate_cw(3);
+            branched_piece.update_blocks();
+            if !check_collision(&self.pile, &branched_piece.blocks) {
+                self.active_piece = branched_piece;
+            }
+        }
+
+        if fa.rotate_right {
+            fa.rotate_right = false;
+            let mut branched_piece = self.active_piece.clone();
+            branched_piece.orientation.rotate_cw(1);
+            branched_piece.update_blocks();
+            if !check_collision(&self.pile, &branched_piece.blocks) {
+                self.active_piece = branched_piece;
+            }
+        }
 
         if fa.begin_move_left {
             fa.begin_move_left = false;

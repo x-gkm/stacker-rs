@@ -7,10 +7,8 @@ const PILE_HEIGHT: usize = 40;
 const PILE_WIDTH: usize = 10;
 const GRID_HEIGHT: i32 = 20;
 const BLOCK_SIZE: f32 = 25.;
-const ENGINE_FPS: i32 = 60;
-const FRAME_TIME: u128 = 1_000_000_000 / ENGINE_FPS as u128;
-const ENGINE_DAS: i32 = 6;
-const ENGINE_ARR: i32 = 1;
+const ENGINE_DAS: i32 = 100;
+const ENGINE_ARR: i32 = 15;
 
 #[derive(Debug, Copy, Clone)]
 enum Piece {
@@ -45,70 +43,70 @@ impl Orientation {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-struct PlayerActions {
-    flip: bool,
-    hold: bool,
-    rotate_left: bool,
-    rotate_right: bool,
-    harddrop: bool,
-    begin_move_right: bool,
-    end_move_right: bool,
-    begin_move_left: bool,
-    end_move_left: bool,
-    begin_softdrop: bool,
-    end_softdrop: bool,
+#[derive(Debug, Clone)]
+enum Input {
+    Flip,
+    Hold,
+    Rotate(Direction),
+    Harddrop,
+    BeginMove(Direction),
+    EndMove(Direction),
+    BeginSoftdrop,
+    EndSoftdrop,
 }
 
-impl PlayerActions {
-    fn take_input(&mut self) {
-        if is_key_pressed(KeyCode::A) {
-            self.hold = true;
-        }
+fn take_input() -> Vec<Input> {
+    let mut result = vec![];
 
-        if is_key_pressed(KeyCode::S) {
-            self.flip = true;
-        }
-
-        if is_key_pressed(KeyCode::D) {
-            self.rotate_left = true;
-        }
-
-        if is_key_pressed(KeyCode::F) {
-            self.rotate_right = true;
-        }
-
-        if is_key_pressed(KeyCode::Space) {
-            self.harddrop = true;
-        }
-
-        if is_key_pressed(KeyCode::J) {
-            self.begin_move_left = true;
-        }
-
-        if is_key_released(KeyCode::J) {
-            self.end_move_left = true;
-        }
-
-        if is_key_pressed(KeyCode::K) {
-            self.begin_softdrop = true;
-        }
-
-        if is_key_released(KeyCode::K) {
-            self.end_softdrop = true;
-        }
-
-        if is_key_pressed(KeyCode::L) {
-            self.begin_move_right = true;
-        }
-
-        if is_key_released(KeyCode::L) {
-            self.end_move_right = true;
-        }
+    if is_key_pressed(KeyCode::A) {
+        result.push(Input::Hold);
     }
+
+    if is_key_pressed(KeyCode::S) {
+        result.push(Input::Flip);
+    }
+
+    if is_key_pressed(KeyCode::D) {
+        result.push(Input::Rotate(Direction::Left));
+    }
+
+    if is_key_pressed(KeyCode::F) {
+        result.push(Input::Rotate(Direction::Right));
+    }
+
+    if is_key_pressed(KeyCode::Space) {
+        result.push(Input::Harddrop);
+    }
+
+    if is_key_pressed(KeyCode::J) {
+        result.push(Input::BeginMove(Direction::Left));
+    }
+
+    if is_key_released(KeyCode::J) {
+        result.push(Input::EndMove(Direction::Left));
+    }
+
+    if is_key_pressed(KeyCode::K) {
+        result.push(Input::BeginSoftdrop);
+    }
+
+    if is_key_released(KeyCode::K) {
+        result.push(Input::EndSoftdrop);
+    }
+
+    if is_key_pressed(KeyCode::L) {
+        result.push(Input::BeginMove(Direction::Right));
+    }
+
+    if is_key_released(KeyCode::L) {
+        result.push(Input::EndMove(Direction::Right));
+    }
+
+    result
 }
 
-enum DasDirection {
+#[derive(Debug, Clone)]
+enum Direction {
     Left,
     Right,
 }
@@ -123,9 +121,7 @@ enum GameEvent {
 struct Engine {
     pile: [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT],
     active_piece: ActivePiece,
-    residue_time: u128,
-    frame_actions: PlayerActions,
-    das: Option<DasDirection>,
+    das: Option<Direction>,
     move_left: bool,
     move_right: bool,
     timer: Timer<GameEvent>,
@@ -135,13 +131,11 @@ impl Engine {
     fn new() -> Engine {
         let mut timer = Timer::new();
 
-        timer.add(ENGINE_FPS as u32, GameEvent::Gravity);
+        timer.add(1000, GameEvent::Gravity);
 
         Engine {
             pile: [[None; PILE_WIDTH]; PILE_HEIGHT],
             active_piece: ActivePiece::spawn(Piece::T),
-            residue_time: 0,
-            frame_actions: Default::default(),
             das: None,
             move_left: false,
             move_right: false,
@@ -149,83 +143,108 @@ impl Engine {
         }
     }
 
-    fn update(&mut self, delta: Duration) {
-        let nanos = delta.as_nanos() + self.residue_time;
-        self.residue_time = nanos % FRAME_TIME;
-        let frames = nanos / FRAME_TIME;
-        for _ in 0..frames {
-            self.frame();
+    fn process_input(&mut self, input: Input) {
+        use Direction::*;
+        use Input::*;
+        match input {
+            Flip => {
+                let mut branched_piece = self.active_piece.clone();
+                branched_piece.orientation.rotate_cw(2);
+                branched_piece.update_blocks();
+                if !check_collision(&self.pile, &branched_piece.blocks) {
+                    self.active_piece = branched_piece;
+                }
+            }
+            Hold => {}
+            Rotate(Left) => {
+                let mut branched_piece = self.active_piece.clone();
+                branched_piece.orientation.rotate_cw(3);
+                branched_piece.update_blocks();
+                if !check_collision(&self.pile, &branched_piece.blocks) {
+                    self.active_piece = branched_piece;
+                }
+            }
+            Rotate(Right) => {
+                let mut branched_piece = self.active_piece.clone();
+                branched_piece.orientation.rotate_cw(1);
+                branched_piece.update_blocks();
+                if !check_collision(&self.pile, &branched_piece.blocks) {
+                    self.active_piece = branched_piece;
+                }
+            }
+            Harddrop => {
+                loop {
+                    let mut branched_piece = self.active_piece.clone();
+                    branched_piece.y -= 1;
+                    branched_piece.update_blocks();
+                    if !check_collision(&self.pile, &branched_piece.blocks) {
+                        self.active_piece = branched_piece;
+                    } else {
+                        break;
+                    }
+                }
+                for (x, y) in self.active_piece.blocks {
+                    self.pile[y as usize][x as usize] = Some(self.active_piece.kind)
+                }
+                self.active_piece = ActivePiece::spawn(Piece::T);
+            }
+            BeginMove(Left) => {
+                self.move_left = true;
+                let mut branched_piece = self.active_piece.clone();
+                branched_piece.x -= 1;
+                branched_piece.update_blocks();
+                if !check_collision(&self.pile, &branched_piece.blocks) {
+                    self.active_piece = branched_piece;
+                }
+                self.timer.remove(GameEvent::Das);
+                self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                self.das = Some(Direction::Left);
+            }
+            BeginMove(Right) => {
+                self.move_right = true;
+                let mut branched_piece = self.active_piece.clone();
+                branched_piece.x += 1;
+                branched_piece.update_blocks();
+                if !check_collision(&self.pile, &branched_piece.blocks) {
+                    self.active_piece = branched_piece;
+                }
+                self.timer.remove(GameEvent::Das);
+                self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                self.das = Some(Direction::Right);
+            }
+            EndMove(Left) => {
+                self.move_left = false;
+                self.timer.remove(GameEvent::Das);
+                if self.move_right {
+                    self.das = Some(Direction::Right);
+                    self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                } else {
+                    self.das = None;
+                }
+            }
+            EndMove(Right) => {
+                self.move_right = false;
+                self.timer.remove(GameEvent::Das);
+                if self.move_left {
+                    self.das = Some(Direction::Left);
+                    self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                } else {
+                    self.das = None;
+                }
+            }
+            BeginSoftdrop => {
+                self.timer.remove(GameEvent::Gravity);
+                self.timer.add(0, GameEvent::Softdrop);
+            }
+            EndSoftdrop => {
+                self.timer.remove(GameEvent::Softdrop);
+                self.timer.add(1000, GameEvent::Gravity);
+            }
         }
     }
 
-    fn frame(&mut self) {
-        let fa = &mut self.frame_actions;
-
-        self.timer.update(1);
-
-        if fa.begin_softdrop {
-            fa.begin_softdrop = false;
-            self.timer.remove(GameEvent::Gravity);
-            self.timer.add(0, GameEvent::Softdrop);
-        }
-
-        if fa.end_softdrop {
-            self.timer.remove(GameEvent::Softdrop);
-            self.timer.add(ENGINE_FPS as u32, GameEvent::Gravity);
-            fa.end_softdrop = false;
-        }
-
-        if fa.begin_move_left {
-            fa.begin_move_left = false;
-            self.move_left = true;
-            let mut branched_piece = self.active_piece.clone();
-            branched_piece.x -= 1;
-            branched_piece.update_blocks();
-            if !check_collision(&self.pile, &branched_piece.blocks) {
-                self.active_piece = branched_piece;
-            }
-            self.timer.remove(GameEvent::Das);
-            self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
-            self.das = Some(DasDirection::Left);
-        }
-
-        if fa.begin_move_right {
-            fa.begin_move_right = false;
-            self.move_right = true;
-            let mut branched_piece = self.active_piece.clone();
-            branched_piece.x += 1;
-            branched_piece.update_blocks();
-            if !check_collision(&self.pile, &branched_piece.blocks) {
-                self.active_piece = branched_piece;
-            }
-            self.timer.remove(GameEvent::Das);
-            self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
-            self.das = Some(DasDirection::Right);
-        }
-
-        if fa.end_move_left {
-            fa.end_move_left = false;
-            self.move_left = false;
-            self.timer.remove(GameEvent::Das);
-            if self.move_right {
-                self.das = Some(DasDirection::Right);
-                self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
-            } else {
-                self.das = None;
-            }
-        }
-
-        if fa.end_move_right {
-            fa.end_move_right = false;
-            self.move_right = false;
-            self.timer.remove(GameEvent::Das);
-            if self.move_left {
-                self.das = Some(DasDirection::Left);
-                self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
-            } else {
-                self.das = None;
-            }
-        }
+    fn update(&mut self, delta: Duration) {
+        self.timer.update(delta.as_millis() as u32);
 
         while let Some(event) = self.timer.poll() {
             match event {
@@ -237,7 +256,7 @@ impl Engine {
                         self.active_piece = branched_piece;
                     }
 
-                    self.timer.add(ENGINE_FPS as u32, GameEvent::Gravity);
+                    self.timer.add(1000, GameEvent::Gravity);
                 }
                 GameEvent::Softdrop => {
                     let mut branched_piece = self.active_piece.clone();
@@ -252,8 +271,8 @@ impl Engine {
                 GameEvent::Das => {
                     let mut branched_piece = self.active_piece.clone();
                     branched_piece.x += match self.das {
-                        Some(DasDirection::Left) => -1,
-                        Some(DasDirection::Right) => 1,
+                        Some(Direction::Left) => -1,
+                        Some(Direction::Right) => 1,
                         None => unreachable!(),
                     };
                     branched_piece.update_blocks();
@@ -264,54 +283,6 @@ impl Engine {
                     self.timer.add(ENGINE_ARR as u32, GameEvent::Das);
                 }
             }
-        }
-
-        if fa.flip {
-            fa.flip = false;
-            let mut branched_piece = self.active_piece.clone();
-            branched_piece.orientation.rotate_cw(2);
-            branched_piece.update_blocks();
-            if !check_collision(&self.pile, &branched_piece.blocks) {
-                self.active_piece = branched_piece;
-            }
-        }
-
-        if fa.rotate_left {
-            fa.rotate_left = false;
-            let mut branched_piece = self.active_piece.clone();
-            branched_piece.orientation.rotate_cw(3);
-            branched_piece.update_blocks();
-            if !check_collision(&self.pile, &branched_piece.blocks) {
-                self.active_piece = branched_piece;
-            }
-        }
-
-        if fa.rotate_right {
-            fa.rotate_right = false;
-            let mut branched_piece = self.active_piece.clone();
-            branched_piece.orientation.rotate_cw(1);
-            branched_piece.update_blocks();
-            if !check_collision(&self.pile, &branched_piece.blocks) {
-                self.active_piece = branched_piece;
-            }
-        }
-
-        if fa.harddrop {
-            fa.harddrop = false;
-            loop {
-                let mut branched_piece = self.active_piece.clone();
-                branched_piece.y -= 1;
-                branched_piece.update_blocks();
-                if !check_collision(&self.pile, &branched_piece.blocks) {
-                    self.active_piece = branched_piece;
-                } else {
-                    break;
-                }
-            }
-            for (x, y) in self.active_piece.blocks {
-                self.pile[y as usize][x as usize] = Some(self.active_piece.kind)
-            }
-            self.active_piece = ActivePiece::spawn(Piece::T);
         }
     }
 }
@@ -325,7 +296,9 @@ async fn main() {
         let time = Instant::now();
         let delta = time - prev_time;
 
-        engine.frame_actions.take_input();
+        for input in take_input() {
+            engine.process_input(input);
+        }
 
         engine.update(delta);
 

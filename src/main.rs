@@ -120,6 +120,7 @@ enum GameEvent {
     Move(Direction),
     Das,
     Spawn,
+    ClearLines,
 }
 
 struct DasState {
@@ -277,10 +278,14 @@ impl Engine {
                     for (x, y) in active_piece.ghost_blocks {
                         self.pile[y as usize][x as usize] = Some(active_piece.kind)
                     }
+                    let line_clear = any_lines_to_clear(&self.pile);
+
+                    if line_clear {
+                        self.timer.add(100, GameEvent::ClearLines);
+                    }
                     self.timer.remove(GameEvent::Gravity);
-                    self.timer.add(10, GameEvent::Spawn);
+                    self.timer.add(10 + if line_clear { 90 } else { 0 }, GameEvent::Spawn);
                     self.active_piece = None;
-                    line_clear(&mut self.pile);
                 }
                 GameEvent::Move(direction) => {
                     let Some(ref mut active_piece) = self.active_piece else {
@@ -298,9 +303,30 @@ impl Engine {
                     }
                     active_piece.update_ghost(&self.pile);
                 }
+                GameEvent::ClearLines => {
+                    line_clear(&mut self.pile);
+                }
             }
         }
     }
+}
+
+fn any_lines_to_clear(pile: &[[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT]) -> bool {
+    for row in pile {
+        let mut full = true;
+        for cell in row {
+            if cell.is_none() {
+                full = false;
+                break;
+            }
+        }
+
+        if full {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn line_clear(pile: &mut [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT]) {

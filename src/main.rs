@@ -119,6 +119,7 @@ enum GameEvent {
     Harddrop,
     Move(Direction),
     Das,
+    Spawn,
 }
 
 struct DasState {
@@ -138,15 +139,13 @@ impl Engine {
     fn new() -> Engine {
         let mut timer = Timer::new();
 
-        timer.add(1000, GameEvent::Gravity);
+        timer.add(0, GameEvent::Spawn);
 
         let pile = [[None; PILE_WIDTH]; PILE_HEIGHT];
-        let mut active_piece = Some(ActivePiece::spawn(Piece::T));
-        active_piece.as_mut().unwrap().update_ghost(&pile);
 
         Engine {
             pile,
-            active_piece,
+            active_piece: None,
             das: DasState {
                 direction: None,
                 move_left: false,
@@ -223,6 +222,11 @@ impl Engine {
 
         while let Some(event) = self.timer.poll() {
             match event {
+                GameEvent::Spawn => {
+                    self.timer.add(1000, GameEvent::Gravity);
+                    self.active_piece = Some(ActivePiece::spawn(Piece::T));
+                    self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
+                }
                 GameEvent::Gravity => {
                     let mut branched_piece = self.active_piece.clone().unwrap();
                     branched_piece.y -= 1;
@@ -234,7 +238,11 @@ impl Engine {
                     self.timer.add(1000, GameEvent::Gravity);
                 }
                 GameEvent::Softdrop => {
-                    let mut branched_piece = self.active_piece.clone().unwrap();
+                    let Some(ref active_piece) = self.active_piece else {
+                        continue;
+                    };
+
+                    let mut branched_piece = active_piece.clone();
                     branched_piece.y -= 1;
                     branched_piece.update_blocks();
                     if !check_collision(&self.pile, &branched_piece.blocks) {
@@ -244,36 +252,51 @@ impl Engine {
                     self.timer.add(5, GameEvent::Softdrop);
                 }
                 GameEvent::Das => {
-                    self.timer.add(0, GameEvent::Move(self.das.direction.unwrap()));
+                    self.timer
+                        .add(0, GameEvent::Move(self.das.direction.unwrap()));
                     self.timer.add(ENGINE_ARR as u32, GameEvent::Das);
                 }
                 GameEvent::Rotate(n) => {
-                    let mut branched_piece = self.active_piece.clone().unwrap();
+                    let Some(ref mut active_piece) = self.active_piece else {
+                        continue;
+                    };
+
+                    let mut branched_piece = active_piece.clone();
                     branched_piece.orientation.rotate_cw(n);
                     branched_piece.update_blocks();
                     if !check_collision(&self.pile, &branched_piece.blocks) {
-                        self.active_piece = Some(branched_piece);
+                        *active_piece = branched_piece;
                     }
-                    self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
+                    active_piece.update_ghost(&self.pile);
                 }
                 GameEvent::Harddrop => {
-                    for (x, y) in self.active_piece.as_ref().unwrap().ghost_blocks {
-                        self.pile[y as usize][x as usize] = Some(self.active_piece.as_ref().unwrap().kind)
+                    let Some(ref active_piece) = self.active_piece else {
+                        continue;
+                    };
+
+                    for (x, y) in active_piece.ghost_blocks {
+                        self.pile[y as usize][x as usize] =
+                            Some(active_piece.kind)
                     }
-                    self.active_piece = Some(ActivePiece::spawn(Piece::T));
-                    self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
+                    self.timer.remove(GameEvent::Gravity);
+                    self.timer.add(10, GameEvent::Spawn);
+                    self.active_piece = None;
                 }
                 GameEvent::Move(direction) => {
-                    let mut branched_piece = self.active_piece.clone().unwrap();
+                    let Some(ref mut active_piece) = self.active_piece else {
+                        continue;
+                    };
+
+                    let mut branched_piece = active_piece.clone();
                     branched_piece.x += match direction {
                         Direction::Right => 1,
                         Direction::Left => -1,
                     };
                     branched_piece.update_blocks();
                     if !check_collision(&self.pile, &branched_piece.blocks) {
-                        self.active_piece = Some(branched_piece);
+                        *active_piece = branched_piece;
                     }
-                    self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
+                    active_piece.update_ghost(&self.pile);
                 }
             }
         }
@@ -313,30 +336,37 @@ async fn main() {
             }
         }
 
-        for (x, y) in engine.active_piece.as_ref().unwrap().ghost_blocks {
-            let x = offset_x + x as f32 * BLOCK_SIZE;
-            let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
+        if let Some(ref active_piece) = engine.active_piece {
+            for (x, y) in active_piece.ghost_blocks {
+                let x = offset_x + x as f32 * BLOCK_SIZE;
+                let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
 
-            draw_rectangle(
-                x,
-                y,
-                BLOCK_SIZE,
-                BLOCK_SIZE,
-                Color { r: 0., g: 0., b: 0., a: 0.2 },
-            );
-        }
+                draw_rectangle(
+                    x,
+                    y,
+                    BLOCK_SIZE,
+                    BLOCK_SIZE,
+                    Color {
+                        r: 0.,
+                        g: 0.,
+                        b: 0.,
+                        a: 0.2,
+                    },
+                );
+            }
 
-        for (x, y) in engine.active_piece.as_ref().unwrap().blocks {
-            let x = offset_x + x as f32 * BLOCK_SIZE;
-            let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
+            for (x, y) in active_piece.blocks {
+                let x = offset_x + x as f32 * BLOCK_SIZE;
+                let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
 
-            draw_rectangle(
-                x,
-                y,
-                BLOCK_SIZE,
-                BLOCK_SIZE,
-                engine.active_piece.as_ref().unwrap().kind.color(),
-            );
+                draw_rectangle(
+                    x,
+                    y,
+                    BLOCK_SIZE,
+                    BLOCK_SIZE,
+                    engine.active_piece.as_ref().unwrap().kind.color(),
+                );
+            }
         }
 
         prev_time = time;

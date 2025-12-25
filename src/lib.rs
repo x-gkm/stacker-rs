@@ -5,11 +5,14 @@ use macroquad::rand::ChooseRandom;
 const PILE_HEIGHT: usize = 40;
 pub const PILE_WIDTH: usize = 10;
 pub const GRID_HEIGHT: i32 = 20;
-const ENGINE_DAS: i32 = 100;
-const ENGINE_ARR: i32 = 15;
-const ENGINE_ARE: u32 = 100;
-const ENGINE_GRAVITY: u32 = 1000;
-const CLEAR_DELAY: u32 = 100;
+
+struct GameConfig {
+    das: u32,
+    arr: u32,
+    are: u32,
+    gravity: u32,
+    clear_delay: u32,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub enum Piece {
@@ -115,6 +118,7 @@ pub struct Engine {
     das: DasState,
     pub next_queue: NextQueue,
     timer: Timer<GameEvent>,
+    config: GameConfig,
 }
 
 impl Engine {
@@ -135,6 +139,13 @@ impl Engine {
             },
             next_queue: NextQueue::new(),
             timer,
+            config: GameConfig {
+                das: 100,
+                arr: 15,
+                are: 100,
+                gravity: 1000,
+                clear_delay: 100,
+            },
         }
     }
 
@@ -159,14 +170,14 @@ impl Engine {
                 self.das.move_left = true;
                 self.timer.add(0, GameEvent::Move(Direction::Left));
                 self.timer.remove(GameEvent::Das);
-                self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                self.timer.add(self.config.das, GameEvent::Das);
                 self.das.direction = Some(Direction::Left);
             }
             BeginMove(Right) => {
                 self.das.move_right = true;
                 self.timer.add(0, GameEvent::Move(Direction::Right));
                 self.timer.remove(GameEvent::Das);
-                self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                self.timer.add(self.config.das, GameEvent::Das);
                 self.das.direction = Some(Direction::Right);
             }
             EndMove(Left) => {
@@ -174,7 +185,7 @@ impl Engine {
                 self.timer.remove(GameEvent::Das);
                 if self.das.move_right {
                     self.das.direction = Some(Direction::Right);
-                    self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                    self.timer.add(self.config.das, GameEvent::Das);
                 } else {
                     self.das.direction = None;
                 }
@@ -184,7 +195,7 @@ impl Engine {
                 self.timer.remove(GameEvent::Das);
                 if self.das.move_left {
                     self.das.direction = Some(Direction::Left);
-                    self.timer.add(ENGINE_DAS as u32, GameEvent::Das);
+                    self.timer.add(self.config.das, GameEvent::Das);
                 } else {
                     self.das.direction = None;
                 }
@@ -195,7 +206,7 @@ impl Engine {
             }
             EndSoftdrop => {
                 self.timer.remove(GameEvent::Softdrop);
-                self.timer.add(ENGINE_GRAVITY, GameEvent::Gravity);
+                self.timer.add(self.config.gravity, GameEvent::Gravity);
             }
         }
     }
@@ -206,7 +217,7 @@ impl Engine {
         while let Some(event) = self.timer.poll() {
             match event {
                 GameEvent::Spawn => {
-                    self.timer.add(ENGINE_GRAVITY, GameEvent::Gravity);
+                    self.timer.add(self.config.gravity, GameEvent::Gravity);
                     self.active_piece = Some(ActivePiece::spawn(self.next_queue.pull()));
                     self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
                 }
@@ -218,7 +229,7 @@ impl Engine {
                         self.active_piece = Some(branched_piece);
                     }
 
-                    self.timer.add(ENGINE_GRAVITY, GameEvent::Gravity);
+                    self.timer.add(self.config.gravity, GameEvent::Gravity);
                 }
                 GameEvent::Softdrop => {
                     let Some(ref active_piece) = self.active_piece else {
@@ -237,7 +248,7 @@ impl Engine {
                 GameEvent::Das => {
                     self.timer
                         .add(0, GameEvent::Move(self.das.direction.unwrap()));
-                    self.timer.add(ENGINE_ARR as u32, GameEvent::Das);
+                    self.timer.add(self.config.arr, GameEvent::Das);
                 }
                 GameEvent::Rotate(n) => {
                     let Some(ref mut active_piece) = self.active_piece else {
@@ -278,10 +289,10 @@ impl Engine {
                     self.timer.remove(GameEvent::Gravity);
                     self.active_piece = None;
                     if line_clear {
-                        self.timer.add(CLEAR_DELAY, GameEvent::ClearLines);
-                        self.timer.add(CLEAR_DELAY, GameEvent::Spawn);
+                        self.timer.add(self.config.clear_delay, GameEvent::ClearLines);
+                        self.timer.add(self.config.clear_delay, GameEvent::Spawn);
                     } else {
-                        self.timer.add(ENGINE_ARE, GameEvent::Spawn);
+                        self.timer.add(self.config.are, GameEvent::Spawn);
                     }
                 }
                 GameEvent::Move(direction) => {

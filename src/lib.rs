@@ -84,7 +84,7 @@ struct DasState {
 }
 
 pub struct NextQueue {
-    pub pieces: VecDeque<Piece>,
+    pieces: VecDeque<Piece>,
 }
 
 impl NextQueue {
@@ -116,7 +116,7 @@ pub struct Engine {
     pub pile: [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT],
     pub active_piece: Option<ActivePiece>,
     das: DasState,
-    pub next_queue: NextQueue,
+    next_queue: NextQueue,
     timer: Timer<GameEvent>,
     config: GameConfig,
 }
@@ -316,6 +316,10 @@ impl Engine {
                 }
             }
         }
+    }
+
+    pub fn next_queue(&self) -> impl Iterator<Item = Piece> {
+        self.next_queue.pieces.iter().take(5).copied()
     }
 }
 

@@ -50,15 +50,19 @@ impl Orientation {
 }
 
 #[derive(Debug, Clone)]
-pub enum Input {
+pub enum Action {
     Flip,
     Hold,
     Rotate(Direction),
+    Move(Direction),
     Harddrop,
-    BeginMove(Direction),
-    EndMove(Direction),
-    BeginSoftdrop,
-    EndSoftdrop,
+    Softdrop,
+}
+
+#[derive(Debug, Clone)]
+pub enum Input {
+    Begin(Action),
+    End(Action),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -156,35 +160,35 @@ impl Engine {
     pub fn process_input(&mut self, input: Input) {
         use Direction::*;
         use Input::*;
+        use Action::*;
         match input {
-            Flip => {
+            Begin(Flip) => {
                 self.timer.add(0, GameEvent::Rotate(2));
             }
-            Hold => {}
-            Rotate(Left) => {
+            Begin(Rotate(Left)) => {
                 self.timer.add(0, GameEvent::Rotate(3));
             }
-            Rotate(Right) => {
+            Begin(Rotate(Right)) => {
                 self.timer.add(0, GameEvent::Rotate(1));
             }
-            Harddrop => {
+            Begin(Harddrop) => {
                 self.timer.add(0, GameEvent::Harddrop);
             }
-            BeginMove(Left) => {
+            Begin(Move(Left)) => {
                 self.das.move_left = true;
                 self.timer.add(0, GameEvent::Move(Direction::Left));
                 self.timer.remove(GameEvent::Das);
                 self.timer.add(self.config.das, GameEvent::Das);
                 self.das.direction = Some(Direction::Left);
             }
-            BeginMove(Right) => {
+            Begin(Move(Right)) => {
                 self.das.move_right = true;
                 self.timer.add(0, GameEvent::Move(Direction::Right));
                 self.timer.remove(GameEvent::Das);
                 self.timer.add(self.config.das, GameEvent::Das);
                 self.das.direction = Some(Direction::Right);
             }
-            EndMove(Left) => {
+            End(Move(Left)) => {
                 self.das.move_left = false;
                 self.timer.remove(GameEvent::Das);
                 if self.das.move_right {
@@ -194,7 +198,7 @@ impl Engine {
                     self.das.direction = None;
                 }
             }
-            EndMove(Right) => {
+            End(Move(Right)) => {
                 self.das.move_right = false;
                 self.timer.remove(GameEvent::Das);
                 if self.das.move_left {
@@ -204,14 +208,15 @@ impl Engine {
                     self.das.direction = None;
                 }
             }
-            BeginSoftdrop => {
+            Begin(Softdrop) => {
                 self.timer.remove(GameEvent::Gravity);
                 self.timer.add(0, GameEvent::Softdrop);
             }
-            EndSoftdrop => {
+            End(Softdrop) => {
                 self.timer.remove(GameEvent::Softdrop);
                 self.timer.add(self.config.gravity, GameEvent::Gravity);
             }
+            _ => (),
         }
     }
 

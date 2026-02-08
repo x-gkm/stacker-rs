@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use macroquad::prelude::*;
-use stacker_engine::{Direction, Engine, GRID_HEIGHT, Input, Orientation, PILE_WIDTH, Piece};
+use stacker_engine::{Action, Direction, Engine, GRID_HEIGHT, Input, Orientation, PILE_WIDTH, Piece};
 
 const BLOCK_SIZE: f32 = 25.;
 
@@ -15,47 +15,67 @@ async fn main() {
         let delta = time - prev_time;
 
         if is_key_pressed(KeyCode::A) {
-            engine.process_input(Input::Hold);
+            engine.process_input(Input::Begin(Action::Hold));
+        }
+
+        if is_key_released(KeyCode::A) {
+            engine.process_input(Input::End(Action::Hold));
         }
 
         if is_key_pressed(KeyCode::S) {
-            engine.process_input(Input::Flip);
+            engine.process_input(Input::Begin(Action::Flip));
+        }
+
+        if is_key_released(KeyCode::S) {
+            engine.process_input(Input::End(Action::Flip));
         }
 
         if is_key_pressed(KeyCode::D) {
-            engine.process_input(Input::Rotate(Direction::Left));
+            engine.process_input(Input::Begin(Action::Rotate(Direction::Left)));
+        }
+
+        if is_key_released(KeyCode::D) {
+            engine.process_input(Input::End(Action::Rotate(Direction::Left)));
         }
 
         if is_key_pressed(KeyCode::F) {
-            engine.process_input(Input::Rotate(Direction::Right));
+            engine.process_input(Input::Begin(Action::Rotate(Direction::Right)));
+        }
+
+        if is_key_released(KeyCode::F) {
+            engine.process_input(Input::End(Action::Rotate(Direction::Right)));
         }
 
         if is_key_pressed(KeyCode::Space) {
-            engine.process_input(Input::Harddrop);
+            engine.process_input(Input::Begin(Action::Harddrop));
+        }
+
+        if is_key_released(KeyCode::Space) {
+            engine.process_input(Input::End(Action::Harddrop));
         }
 
         if is_key_pressed(KeyCode::J) {
-            engine.process_input(Input::BeginMove(Direction::Left));
+            engine.process_input(Input::Begin(Action::Move(Direction::Left)));
         }
 
         if is_key_released(KeyCode::J) {
-            engine.process_input(Input::EndMove(Direction::Left));
+            engine.process_input(Input::End(Action::Move(Direction::Left)));
         }
 
         if is_key_pressed(KeyCode::K) {
-            engine.process_input(Input::BeginSoftdrop);
+            engine.process_input(Input::Begin(Action::Softdrop));
         }
 
         if is_key_released(KeyCode::K) {
-            engine.process_input(Input::EndSoftdrop);
+            engine.process_input(Input::End(Action::Softdrop));
         }
 
         if is_key_pressed(KeyCode::L) {
-            engine.process_input(Input::BeginMove(Direction::Right));
+            engine.process_input(Input::Begin(Action::Move(Direction::Right)));
         }
 
         if is_key_released(KeyCode::L) {
-            engine.process_input(Input::EndMove(Direction::Right));
+            engine.process_input(Input::End(Action::Move(Direction::Right)));
         }
 
         engine.update(delta);

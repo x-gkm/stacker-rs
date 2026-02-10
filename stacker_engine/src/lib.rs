@@ -13,6 +13,7 @@ struct GameConfig {
     arr: u32,
     are: u32,
     gravity: u32,
+    softdrop: u32,
     clear_delay: u32,
 }
 
@@ -160,6 +161,7 @@ impl Engine {
                 arr: 1,
                 are: 6,
                 gravity: 60,
+                softdrop: 3,
                 clear_delay: 6,
             },
         }
@@ -255,7 +257,7 @@ impl Engine {
         self.fall();
         self.timer.add(
             if self.movement.soft_dropping {
-                5
+                self.config.softdrop
             } else {
                 self.config.gravity
             },
@@ -341,7 +343,7 @@ impl Engine {
                     self.fall();
                     self.movement.soft_dropping = true;
                     self.timer.remove(TimedEvent::Fall);
-                    self.timer.add(5, TimedEvent::Fall);
+                    self.timer.add(self.config.softdrop, TimedEvent::Fall);
                 }
                 End(Softdrop) => {
                     self.movement.soft_dropping = false;

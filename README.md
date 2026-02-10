@@ -11,8 +11,8 @@ Things left to implement:
 - [x] Das
 - [x] Kicks
 - [x] Next queue
+- [x] Hold
 - [ ] Input buffering
-- [ ] Hold
 - [ ] 0 ARR support
 - [ ] Forced lock
 - [ ] Block out

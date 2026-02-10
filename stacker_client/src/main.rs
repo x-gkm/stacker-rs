@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use macroquad::prelude::*;
 use stacker_engine::{
-    Action, Direction, Engine, GRID_HEIGHT, Input, Orientation, PILE_WIDTH, Piece,
+    Action, Direction, Engine, GRID_HEIGHT, HoldPiece, Input, Orientation, PILE_WIDTH, Piece,
 };
 
 const BLOCK_SIZE: f32 = 25.;
@@ -40,6 +40,25 @@ async fn main() {
                 } else if y < GRID_HEIGHT as usize {
                     draw_rectangle_lines(block_x, block_y, BLOCK_SIZE, BLOCK_SIZE, 1., GRAY);
                 }
+            }
+        }
+
+        if let HoldPiece::Locked(piece) | HoldPiece::Unlocked(piece) = engine.hold {
+            for (x, y) in piece.blocks(Orientation::N) {
+                let x = offset_x + (x - 4) as f32 * BLOCK_SIZE;
+                let y = offset_y + (GRID_HEIGHT - y - 4 as i32 * 3 - 7) as f32 * BLOCK_SIZE;
+
+                draw_rectangle(
+                    x,
+                    y,
+                    BLOCK_SIZE,
+                    BLOCK_SIZE,
+                    if let HoldPiece::Locked(..) = engine.hold {
+                        GRAY
+                    } else {
+                        piece_color(piece)
+                    },
+                );
             }
         }
 

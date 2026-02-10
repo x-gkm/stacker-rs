@@ -117,9 +117,16 @@ impl NextQueue {
     }
 }
 
+pub enum HoldPiece {
+    Empty,
+    Locked(Piece),
+    Unlocked(Piece),
+}
+
 pub struct Engine {
     pub pile: [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT],
     pub active_piece: Option<ActivePiece>,
+    pub hold: HoldPiece,
     frame_inputs: Vec<Input>,
     movement: MovementState,
     next_queue: NextQueue,
@@ -146,6 +153,7 @@ impl Engine {
                 soft_dropping: false,
             },
             next_queue: NextQueue::new(),
+            hold: HoldPiece::Empty,
             timer,
             config: GameConfig {
                 das: 6,
@@ -197,6 +205,10 @@ impl Engine {
             self.pile[y as usize][x as usize] = Some(active_piece.kind)
         }
         let line_clear = any_lines_to_clear(&self.pile);
+
+        if let HoldPiece::Locked(piece) = self.hold {
+            self.hold = HoldPiece::Unlocked(piece);
+        }
 
         self.timer.remove(TimedEvent::Fall);
         self.active_piece = None;
@@ -251,6 +263,12 @@ impl Engine {
         );
     }
 
+    fn spawn(&mut self, piece: Piece) {
+        self.active_piece = Some(ActivePiece::spawn(piece));
+        self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
+        self.handle_fall();
+    }
+
     pub fn update(&mut self) {
         let inputs: Vec<_> = self.frame_inputs.drain(..).collect();
         for input in inputs {
@@ -266,6 +284,21 @@ impl Engine {
                 }
                 Begin(Rotate(Left)) => {
                     self.rotate(3);
+                }
+                Begin(Hold) => {
+                    let Some(ref mut active_piece) = self.active_piece else {
+                        continue;
+                    };
+
+                    let piece = match self.hold {
+                        HoldPiece::Unlocked(piece) => piece,
+                        HoldPiece::Empty => self.next_queue.pull(),
+                        HoldPiece::Locked(..) => continue,
+                    };
+
+                    self.hold = HoldPiece::Locked(active_piece.kind);
+                    self.timer.remove(TimedEvent::Fall);
+                    self.spawn(piece);
                 }
                 Begin(Harddrop) => {
                     self.harddrop();
@@ -324,9 +357,8 @@ impl Engine {
         while let Some(event) = self.timer.poll() {
             match event {
                 TimedEvent::Spawn => {
-                    self.active_piece = Some(ActivePiece::spawn(self.next_queue.pull()));
-                    self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
-                    self.handle_fall();
+                    let piece = self.next_queue.pull();
+                    self.spawn(piece);
                 }
                 TimedEvent::Fall => {
                     self.handle_fall();

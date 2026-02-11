@@ -139,7 +139,7 @@ impl Engine {
     pub fn new(seed: u64) -> Engine {
         let mut timer = PullTimer::new();
 
-        timer.add(0, TimedEvent::Spawn);
+        timer.add(60, TimedEvent::Spawn);
 
         Engine {
             pile: [[None; PILE_WIDTH]; PILE_HEIGHT],

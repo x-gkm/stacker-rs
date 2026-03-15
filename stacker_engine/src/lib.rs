@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use pull_timer::PullTimer;
 use rand::{SeedableRng, seq::SliceRandom};
 use rand_chacha::ChaChaRng;
 
@@ -72,14 +71,6 @@ pub enum Direction {
     Right,
 }
 
-#[derive(PartialEq)]
-enum TimedEvent {
-    Fall,
-    Das,
-    Spawn,
-    ClearLines,
-}
-
 struct MovementState {
     das: Option<Direction>,
     move_left: bool,
@@ -124,6 +115,36 @@ pub enum HoldPiece {
     Unlocked(Piece),
 }
 
+struct Timer(u32);
+
+impl Timer {
+    fn new() -> Timer {
+        Timer(0)
+    }
+
+    fn tick(&mut self) -> bool {
+        if self.0 == 0 {
+            return false;
+        }
+
+        self.0 -= 1;
+
+        if self.0 == 0 {
+            return true;
+        }
+
+        false
+    }
+
+    fn set(&mut self, n: u32) {
+        self.0 = n;
+    }
+
+    fn stop(&mut self) {
+        self.0 = 0;
+    }
+}
+
 pub struct Engine {
     pub pile: [[Option<Piece>; PILE_WIDTH]; PILE_HEIGHT],
     pub active_piece: Option<ActivePiece>,
@@ -131,15 +152,18 @@ pub struct Engine {
     pub next_queue: NextQueue,
     frame_inputs: Vec<Input>,
     movement: MovementState,
-    timer: PullTimer<TimedEvent>,
     config: GameConfig,
+    spawn_timer: Timer,
+    fall_timer: Timer,
+    das_timer: Timer,
+    line_clear_timer: Timer,
 }
 
 impl Engine {
     pub fn new(seed: u64) -> Engine {
-        let mut timer = PullTimer::new();
+        let mut spawn_timer = Timer::new();
 
-        timer.add(60, TimedEvent::Spawn);
+        spawn_timer.set(60);
 
         Engine {
             pile: [[None; PILE_WIDTH]; PILE_HEIGHT],
@@ -153,7 +177,6 @@ impl Engine {
             },
             next_queue: NextQueue::new(seed),
             hold: HoldPiece::Empty,
-            timer,
             config: GameConfig {
                 das: 6,
                 arr: 1,
@@ -162,6 +185,10 @@ impl Engine {
                 softdrop: 3,
                 clear_delay: 6,
             },
+            spawn_timer,
+            fall_timer: Timer::new(),
+            das_timer: Timer::new(),
+            line_clear_timer: Timer::new(),
         }
     }
 
@@ -210,14 +237,13 @@ impl Engine {
             self.hold = HoldPiece::Unlocked(piece);
         }
 
-        self.timer.remove(TimedEvent::Fall);
+        self.fall_timer.stop();
         self.active_piece = None;
         if line_clear {
-            self.timer
-                .add(self.config.clear_delay, TimedEvent::ClearLines);
-            self.timer.add(self.config.clear_delay, TimedEvent::Spawn);
+            self.line_clear_timer.set(self.config.clear_delay);
+            self.spawn_timer.set(self.config.clear_delay);
         } else {
-            self.timer.add(self.config.are, TimedEvent::Spawn);
+            self.spawn_timer.set(self.config.are);
         }
     }
 
@@ -253,14 +279,11 @@ impl Engine {
 
     fn handle_fall(&mut self) {
         self.fall();
-        self.timer.add(
-            if self.movement.soft_dropping {
-                self.config.softdrop
-            } else {
-                self.config.gravity
-            },
-            TimedEvent::Fall,
-        );
+        self.fall_timer.set(if self.movement.soft_dropping {
+            self.config.softdrop
+        } else {
+            self.config.gravity
+        });
     }
 
     fn spawn(&mut self, piece: Piece) {
@@ -297,7 +320,7 @@ impl Engine {
                     };
 
                     self.hold = HoldPiece::Locked(active_piece.kind);
-                    self.timer.remove(TimedEvent::Fall);
+                    self.fall_timer.stop();
                     self.spawn(piece);
                 }
                 Begin(Harddrop) => {
@@ -307,32 +330,30 @@ impl Engine {
                     self.movement.move_left = true;
                     self.movement.das = Some(Left);
                     self.do_move(Left);
-                    self.timer.remove(TimedEvent::Das);
-                    self.timer.add(self.config.das, TimedEvent::Das);
+                    self.das_timer.set(self.config.das);
                 }
                 Begin(Move(Right)) => {
                     self.movement.move_right = true;
                     self.movement.das = Some(Right);
                     self.do_move(Right);
-                    self.timer.remove(TimedEvent::Das);
-                    self.timer.add(self.config.das, TimedEvent::Das);
+                    self.das_timer.set(self.config.das);
                 }
                 End(Move(Left)) => {
                     self.movement.move_left = false;
-                    self.timer.remove(TimedEvent::Das);
+                    self.das_timer.stop();
                     if self.movement.move_right {
                         self.movement.das = Some(Direction::Right);
-                        self.timer.add(self.config.das, TimedEvent::Das);
+                        self.das_timer.set(self.config.das);
                     } else {
                         self.movement.das = None;
                     }
                 }
                 End(Move(Right)) => {
                     self.movement.move_right = false;
-                    self.timer.remove(TimedEvent::Das);
+                    self.das_timer.stop();
                     if self.movement.move_left {
                         self.movement.das = Some(Direction::Left);
-                        self.timer.add(self.config.das, TimedEvent::Das);
+                        self.das_timer.set(self.config.das);
                     } else {
                         self.movement.das = None;
                     }
@@ -340,37 +361,30 @@ impl Engine {
                 Begin(Softdrop) => {
                     self.fall();
                     self.movement.soft_dropping = true;
-                    self.timer.remove(TimedEvent::Fall);
-                    self.timer.add(self.config.softdrop, TimedEvent::Fall);
+                    self.fall_timer.set(self.config.softdrop);
                 }
                 End(Softdrop) => {
                     self.movement.soft_dropping = false;
-                    self.timer.remove(TimedEvent::Fall);
-                    self.timer.add(self.config.gravity, TimedEvent::Fall);
+                    self.fall_timer.set(self.config.gravity);
                 }
                 _ => (),
             }
         }
 
-        self.timer.tick(1);
-
-        while let Some(event) = self.timer.poll() {
-            match event {
-                TimedEvent::Spawn => {
-                    let piece = self.next_queue.pull();
-                    self.spawn(piece);
-                }
-                TimedEvent::Fall => {
-                    self.handle_fall();
-                }
-                TimedEvent::Das => {
-                    self.do_move(self.movement.das.unwrap());
-                    self.timer.add(self.config.arr, TimedEvent::Das);
-                }
-                TimedEvent::ClearLines => {
-                    line_clear(&mut self.pile);
-                }
-            }
+        // line_clear should be called before spawn so that the ghost piece isn't floating.
+        if self.line_clear_timer.tick() {
+            line_clear(&mut self.pile);
+        }
+        if self.spawn_timer.tick() {
+            let piece = self.next_queue.pull();
+            self.spawn(piece);
+        }
+        if self.fall_timer.tick() {
+            self.handle_fall();
+        }
+        if self.das_timer.tick() {
+            self.do_move(self.movement.das.unwrap());
+            self.das_timer.set(self.config.arr);
         }
     }
 }

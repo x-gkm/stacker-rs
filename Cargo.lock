@@ -408,12 +408,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pull-timer"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40484e4112053c8aebbf08790a39662ccd9bcc9d43e064176d33e70a940a0981"
-
-[[package]]
 name = "quad-rand"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -577,7 +571,6 @@ dependencies = [
 name = "stacker_engine"
 version = "0.1.0"
 dependencies = [
- "pull-timer",
  "rand",
  "rand_chacha",
  "serde",

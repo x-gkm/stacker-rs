@@ -31,6 +31,47 @@ pub enum PieceKind {
     S,
 }
 
+impl PieceKind {
+    pub fn blocks(self, orientation: Orientation) -> [(i32, i32); 4] {
+        match (self, orientation) {
+            (PieceKind::I, Orientation::N) => [(0, 0), (-1, 0), (1, 0), (2, 0)],
+            (PieceKind::I, Orientation::E) => [(0, 0), (0, -2), (0, -1), (0, 1)],
+            (PieceKind::I, Orientation::S) => [(0, 0), (-2, 0), (-1, 0), (1, 0)],
+            (PieceKind::I, Orientation::W) => [(0, 0), (0, -1), (0, 1), (0, 2)],
+
+            (PieceKind::O, Orientation::N) => [(0, 0), (0, 1), (1, 1), (1, 0)],
+            (PieceKind::O, Orientation::E) => [(0, 0), (0, -1), (1, -1), (1, 0)],
+            (PieceKind::O, Orientation::S) => [(0, 0), (0, -1), (-1, -1), (-1, 0)],
+            (PieceKind::O, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (-1, 0)],
+
+            (PieceKind::T, Orientation::N) => [(0, 0), (-1, 0), (0, 1), (1, 0)],
+            (PieceKind::T, Orientation::E) => [(0, 0), (0, 1), (1, 0), (0, -1)],
+            (PieceKind::T, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, 0)],
+            (PieceKind::T, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (0, -1)],
+
+            (PieceKind::L, Orientation::N) => [(0, 0), (-1, 0), (1, 1), (1, 0)],
+            (PieceKind::L, Orientation::E) => [(0, 0), (0, 1), (1, -1), (0, -1)],
+            (PieceKind::L, Orientation::S) => [(0, 0), (-1, 0), (-1, -1), (1, 0)],
+            (PieceKind::L, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (0, -1)],
+
+            (PieceKind::Z, Orientation::N) => [(0, 0), (-1, 1), (0, 1), (1, 0)],
+            (PieceKind::Z, Orientation::E) => [(0, 0), (1, 1), (1, 0), (0, -1)],
+            (PieceKind::Z, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, -1)],
+            (PieceKind::Z, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (-1, -1)],
+
+            (PieceKind::J, Orientation::N) => [(0, 0), (-1, 0), (-1, 1), (1, 0)],
+            (PieceKind::J, Orientation::E) => [(0, 0), (0, 1), (1, 1), (0, -1)],
+            (PieceKind::J, Orientation::S) => [(0, 0), (-1, 0), (1, -1), (1, 0)],
+            (PieceKind::J, Orientation::W) => [(0, 0), (0, 1), (-1, -1), (0, -1)],
+
+            (PieceKind::S, Orientation::N) => [(0, 0), (1, 1), (0, 1), (-1, 0)],
+            (PieceKind::S, Orientation::E) => [(0, 0), (1, -1), (1, 0), (0, 1)],
+            (PieceKind::S, Orientation::S) => [(0, 0), (1, 0), (0, -1), (-1, -1)],
+            (PieceKind::S, Orientation::W) => [(0, 0), (0, -1), (-1, 0), (-1, 1)],
+        }
+    }
+}
+
 type Cell = Option<PieceKind>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -471,78 +512,6 @@ pub struct Piece {
     pub ghost_blocks: [(i32, i32); 4],
 }
 
-fn kick_offset(piece: PieceKind, from: Orientation, to: Orientation, n: i32) -> (i32, i32) {
-    let (x1, y1) = kick_offset_part(piece, from, n);
-    let (x2, y2) = kick_offset_part(piece, to, n);
-
-    (x1 - x2, y1 - y2)
-}
-
-fn kick_offset_part(piece: PieceKind, orientation: Orientation, n: i32) -> (i32, i32) {
-    if let PieceKind::O = piece {
-        return match orientation {
-            Orientation::N => (0, 0),
-            Orientation::E => (0, -1),
-            Orientation::S => (-1, -1),
-            Orientation::W => (-1, 0),
-        };
-    }
-
-    let offsets = match (piece, orientation) {
-        (PieceKind::I, Orientation::N) => [(0, 0), (-1, 0), (2, 0), (-1, 0), (2, 0)],
-        (PieceKind::I, Orientation::E) => [(-1, 0), (0, 0), (0, 0), (0, 1), (0, -2)],
-        (PieceKind::I, Orientation::S) => [(-1, 1), (1, 1), (-2, 1), (1, 0), (-2, 0)],
-        (PieceKind::I, Orientation::W) => [(0, 1), (0, 1), (0, 1), (0, -1), (0, 2)],
-        (_, Orientation::N) => [(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],
-        (_, Orientation::E) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
-        (_, Orientation::S) => [(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],
-        (_, Orientation::W) => [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
-    };
-
-    offsets[n as usize]
-}
-
-impl PieceKind {
-    pub fn blocks(self, orientation: Orientation) -> [(i32, i32); 4] {
-        match (self, orientation) {
-            (PieceKind::I, Orientation::N) => [(0, 0), (-1, 0), (1, 0), (2, 0)],
-            (PieceKind::I, Orientation::E) => [(0, 0), (0, -2), (0, -1), (0, 1)],
-            (PieceKind::I, Orientation::S) => [(0, 0), (-2, 0), (-1, 0), (1, 0)],
-            (PieceKind::I, Orientation::W) => [(0, 0), (0, -1), (0, 1), (0, 2)],
-
-            (PieceKind::O, Orientation::N) => [(0, 0), (0, 1), (1, 1), (1, 0)],
-            (PieceKind::O, Orientation::E) => [(0, 0), (0, -1), (1, -1), (1, 0)],
-            (PieceKind::O, Orientation::S) => [(0, 0), (0, -1), (-1, -1), (-1, 0)],
-            (PieceKind::O, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (-1, 0)],
-
-            (PieceKind::T, Orientation::N) => [(0, 0), (-1, 0), (0, 1), (1, 0)],
-            (PieceKind::T, Orientation::E) => [(0, 0), (0, 1), (1, 0), (0, -1)],
-            (PieceKind::T, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, 0)],
-            (PieceKind::T, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (0, -1)],
-
-            (PieceKind::L, Orientation::N) => [(0, 0), (-1, 0), (1, 1), (1, 0)],
-            (PieceKind::L, Orientation::E) => [(0, 0), (0, 1), (1, -1), (0, -1)],
-            (PieceKind::L, Orientation::S) => [(0, 0), (-1, 0), (-1, -1), (1, 0)],
-            (PieceKind::L, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (0, -1)],
-
-            (PieceKind::Z, Orientation::N) => [(0, 0), (-1, 1), (0, 1), (1, 0)],
-            (PieceKind::Z, Orientation::E) => [(0, 0), (1, 1), (1, 0), (0, -1)],
-            (PieceKind::Z, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, -1)],
-            (PieceKind::Z, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (-1, -1)],
-
-            (PieceKind::J, Orientation::N) => [(0, 0), (-1, 0), (-1, 1), (1, 0)],
-            (PieceKind::J, Orientation::E) => [(0, 0), (0, 1), (1, 1), (0, -1)],
-            (PieceKind::J, Orientation::S) => [(0, 0), (-1, 0), (1, -1), (1, 0)],
-            (PieceKind::J, Orientation::W) => [(0, 0), (0, 1), (-1, -1), (0, -1)],
-
-            (PieceKind::S, Orientation::N) => [(0, 0), (1, 1), (0, 1), (-1, 0)],
-            (PieceKind::S, Orientation::E) => [(0, 0), (1, -1), (1, 0), (0, 1)],
-            (PieceKind::S, Orientation::S) => [(0, 0), (1, 0), (0, -1), (-1, -1)],
-            (PieceKind::S, Orientation::W) => [(0, 0), (0, -1), (-1, 0), (-1, 1)],
-        }
-    }
-}
-
 impl Piece {
     fn spawn(kind: PieceKind) -> Piece {
         let x = PILE_WIDTH as i32 / 2 - 1;
@@ -586,4 +555,35 @@ impl Piece {
         self.ghost_y = ghost_piece.y;
         self.ghost_blocks = ghost_piece.blocks;
     }
+}
+
+fn kick_offset(piece: PieceKind, from: Orientation, to: Orientation, n: i32) -> (i32, i32) {
+    let (x1, y1) = kick_offset_part(piece, from, n);
+    let (x2, y2) = kick_offset_part(piece, to, n);
+
+    (x1 - x2, y1 - y2)
+}
+
+fn kick_offset_part(piece: PieceKind, orientation: Orientation, n: i32) -> (i32, i32) {
+    if let PieceKind::O = piece {
+        return match orientation {
+            Orientation::N => (0, 0),
+            Orientation::E => (0, -1),
+            Orientation::S => (-1, -1),
+            Orientation::W => (-1, 0),
+        };
+    }
+
+    let offsets = match (piece, orientation) {
+        (PieceKind::I, Orientation::N) => [(0, 0), (-1, 0), (2, 0), (-1, 0), (2, 0)],
+        (PieceKind::I, Orientation::E) => [(-1, 0), (0, 0), (0, 0), (0, 1), (0, -2)],
+        (PieceKind::I, Orientation::S) => [(-1, 1), (1, 1), (-2, 1), (1, 0), (-2, 0)],
+        (PieceKind::I, Orientation::W) => [(0, 1), (0, 1), (0, 1), (0, -1), (0, 2)],
+        (_, Orientation::N) => [(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],
+        (_, Orientation::E) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        (_, Orientation::S) => [(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],
+        (_, Orientation::W) => [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+    };
+
+    offsets[n as usize]
 }

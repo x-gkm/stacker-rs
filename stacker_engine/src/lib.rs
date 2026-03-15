@@ -159,7 +159,7 @@ impl Timer {
 pub struct Engine {
     #[serde(with = "serde_big_array::BigArray")]
     pub pile: [[Cell; PILE_WIDTH]; PILE_HEIGHT],
-    pub active_piece: Option<ActivePiece>,
+    pub active_piece: Option<Piece>,
     pub hold: HoldPiece,
     pub next_queue: NextQueue,
     movement: MovementState,
@@ -293,7 +293,7 @@ impl Engine {
     }
 
     fn spawn(&mut self, piece: PieceKind) {
-        self.active_piece = Some(ActivePiece::spawn(piece));
+        self.active_piece = Some(Piece::spawn(piece));
         self.active_piece.as_mut().unwrap().update_ghost(&self.pile);
         self.handle_fall();
     }
@@ -439,7 +439,7 @@ fn line_clear(pile: &mut [[Cell; PILE_WIDTH]; PILE_HEIGHT]) {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ActivePiece {
+pub struct Piece {
     pub kind: PieceKind,
     orientation: Orientation,
     x: i32,
@@ -521,13 +521,13 @@ impl PieceKind {
     }
 }
 
-impl ActivePiece {
-    fn spawn(kind: PieceKind) -> ActivePiece {
+impl Piece {
+    fn spawn(kind: PieceKind) -> Piece {
         let x = PILE_WIDTH as i32 / 2 - 1;
         let y = GRID_HEIGHT + 2;
         let orientation = Orientation::N;
 
-        let mut result = ActivePiece {
+        let mut result = Piece {
             kind,
             orientation,
             x,

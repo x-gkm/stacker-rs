@@ -12,16 +12,18 @@ async fn main() {
     let mut engine = Engine::new(0);
     let mut prev_time = Instant::now();
     let mut residue = 0.0;
+    let mut inputs = vec![];
 
     loop {
         let time = Instant::now();
         let delta = time - prev_time;
         residue += delta.as_secs_f64();
 
-        handle_input(&mut engine);
+        handle_input(&mut inputs);
 
         while residue >= 1.0 / 60.0 {
-            engine.update();
+            engine.update(&inputs);
+            inputs.clear();
             residue -= 1.0 / 60.0
         }
 
@@ -110,7 +112,7 @@ async fn main() {
     }
 }
 
-fn handle_input(engine: &mut Engine) {
+fn handle_input(result: &mut Vec<Input>) {
     let mapping = [
         (KeyCode::A, Action::Hold),
         (KeyCode::S, Action::Flip),
@@ -124,11 +126,11 @@ fn handle_input(engine: &mut Engine) {
 
     for (key, action) in mapping {
         if is_key_pressed(key) {
-            engine.queue_input(Input::Begin(action));
+            result.push(Input::Begin(action));
         }
 
         if is_key_released(key) {
-            engine.queue_input(Input::End(action));
+            result.push(Input::End(action));
         }
     }
 }

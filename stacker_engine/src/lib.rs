@@ -1,4 +1,6 @@
-use std::collections::VecDeque;
+#![no_std]
+
+use heapless::Deque;
 
 use rand::{SeedableRng, seq::SliceRandom};
 use rand_chacha::ChaChaRng;
@@ -79,14 +81,14 @@ struct MovementState {
 }
 
 pub struct NextQueue {
-    pub pieces: VecDeque<Piece>,
+    pub pieces: Deque<Piece, 13>,
     rng: ChaChaRng,
 }
 
 impl NextQueue {
     fn new(seed: u64) -> NextQueue {
         let mut result = NextQueue {
-            pieces: VecDeque::new(),
+            pieces: Deque::new(),
             rng: ChaChaRng::seed_from_u64(seed),
         };
 
@@ -150,7 +152,6 @@ pub struct Engine {
     pub active_piece: Option<ActivePiece>,
     pub hold: HoldPiece,
     pub next_queue: NextQueue,
-    frame_inputs: Vec<Input>,
     movement: MovementState,
     config: GameConfig,
     spawn_timer: Timer,
@@ -168,7 +169,6 @@ impl Engine {
         Engine {
             pile: [[None; PILE_WIDTH]; PILE_HEIGHT],
             active_piece: None,
-            frame_inputs: Vec::new(),
             movement: MovementState {
                 das: None,
                 move_left: false,
@@ -190,10 +190,6 @@ impl Engine {
             das_timer: Timer::new(),
             line_clear_timer: Timer::new(),
         }
-    }
-
-    pub fn queue_input(&mut self, input: Input) {
-        self.frame_inputs.push(input);
     }
 
     fn rotate(&mut self, count: i32) {
@@ -292,9 +288,8 @@ impl Engine {
         self.handle_fall();
     }
 
-    pub fn update(&mut self) {
-        let inputs: Vec<_> = self.frame_inputs.drain(..).collect();
-        for input in inputs {
+    pub fn update(&mut self, frame_inputs: &[Input]) {
+        for input in frame_inputs {
             use Action::*;
             use Direction::*;
             use Input::*;

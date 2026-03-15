@@ -563,7 +563,7 @@ fn kick_offset(piece: PieceKind, from: Orientation, to: Orientation, n: i32) -> 
 }
 
 fn kick_offset_part(piece: PieceKind, orientation: Orientation, n: i32) -> (i32, i32) {
-    if let PieceKind::O = piece {
+    if piece == PieceKind::O {
         return match orientation {
             Orientation::N => (0, 0),
             Orientation::E => (0, -1),

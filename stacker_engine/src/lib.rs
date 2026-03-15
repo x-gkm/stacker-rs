@@ -11,13 +11,13 @@ pub const PILE_WIDTH: usize = 10;
 pub const GRID_HEIGHT: i32 = 20;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct GameConfig {
-    das: u32,
-    arr: u32,
-    are: u32,
-    gravity: u32,
-    softdrop: u32,
-    clear_delay: u32,
+pub struct GameConfig {
+    pub das: u32,
+    pub arr: u32,
+    pub are: u32,
+    pub gravity: u32,
+    pub softdrop: u32,
+    pub clear_delay: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -212,7 +212,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(seed: u64) -> Engine {
+    pub fn new(seed: u64, config: GameConfig) -> Engine {
         let mut spawn_timer = Timer::new();
 
         spawn_timer.set(60);
@@ -229,14 +229,7 @@ impl Engine {
             },
             next_queue: NextQueue::new(seed),
             hold: HoldPiece::Empty,
-            config: GameConfig {
-                das: 6,
-                arr: 1,
-                are: 6,
-                gravity: 60,
-                softdrop: 3,
-                clear_delay: 6,
-            },
+            config,
             spawn_timer,
             fall_timer: Timer::new(),
             das_timer: Timer::new(),

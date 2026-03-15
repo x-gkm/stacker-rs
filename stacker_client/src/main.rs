@@ -2,14 +2,24 @@ use std::time::Instant;
 
 use macroquad::prelude::*;
 use stacker_engine::{
-    Action, Direction, Engine, GRID_HEIGHT, HoldPiece, Input, Orientation, PILE_WIDTH, PieceKind,
+    Action, Direction, Engine, GRID_HEIGHT, GameConfig, HoldPiece, Input, Orientation, PILE_WIDTH, PieceKind
 };
 
 const BLOCK_SIZE: f32 = 25.;
 
 #[macroquad::main("stacker")]
 async fn main() {
-    let mut engine = Engine::new(0);
+    let mut engine = Engine::new(
+        0,
+        GameConfig {
+            das: 6,
+            arr: 1,
+            are: 6,
+            gravity: 60,
+            softdrop: 3,
+            clear_delay: 6,
+        },
+    );
     let mut prev_time = Instant::now();
     let mut residue = 0.0;
     let mut inputs = vec![];

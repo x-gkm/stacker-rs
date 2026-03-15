@@ -157,8 +157,7 @@ impl Timer {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Engine {
-    #[serde(with = "serde_big_array::BigArray")]
-    pub pile: [[Cell; PILE_WIDTH]; PILE_HEIGHT],
+    pub pile: Pile,
     pub active_piece: Option<Piece>,
     pub hold: HoldPiece,
     pub next_queue: NextQueue,
@@ -177,7 +176,7 @@ impl Engine {
         spawn_timer.set(60);
 
         Engine {
-            pile: [[None; PILE_WIDTH]; PILE_HEIGHT],
+            pile: Pile::new(),
             active_piece: None,
             movement: MovementState {
                 das: None,
@@ -220,7 +219,7 @@ impl Engine {
             branched_piece.x = active_piece.x + kick_x;
             branched_piece.y = active_piece.y + kick_y;
             branched_piece.update_blocks();
-            if !check_collision(&self.pile, &branched_piece.blocks) {
+            if !self.pile.check_collision(&branched_piece.blocks) {
                 *active_piece = branched_piece;
                 break;
             }
@@ -235,9 +234,9 @@ impl Engine {
         };
 
         for (x, y) in active_piece.ghost_blocks {
-            self.pile[y as usize][x as usize] = Some(active_piece.kind)
+            self.pile.0[y as usize][x as usize] = Some(active_piece.kind)
         }
-        let line_clear = any_lines_to_clear(&self.pile);
+        let line_clear = self.pile.any_lines_to_clear();
 
         if let HoldPiece::Locked(piece) = self.hold {
             self.hold = HoldPiece::Unlocked(piece);
@@ -264,7 +263,7 @@ impl Engine {
             Direction::Right => 1,
         };
         branched_piece.update_blocks();
-        if !check_collision(&self.pile, &branched_piece.blocks) {
+        if !self.pile.check_collision(&branched_piece.blocks) {
             *active_piece = branched_piece;
         }
         active_piece.update_ghost(&self.pile);
@@ -278,7 +277,7 @@ impl Engine {
         let mut branched_piece = active_piece.clone();
         branched_piece.y -= 1;
         branched_piece.update_blocks();
-        if !check_collision(&self.pile, &branched_piece.blocks) {
+        if !self.pile.check_collision(&branched_piece.blocks) {
             self.active_piece = Some(branched_piece);
         }
     }
@@ -378,7 +377,7 @@ impl Engine {
 
         // line_clear should be called before spawn so that the ghost piece isn't floating.
         if self.line_clear_timer.tick() {
-            line_clear(&mut self.pile);
+            self.pile.line_clear();
         }
         if self.spawn_timer.tick() {
             let piece = self.next_queue.pull();
@@ -394,47 +393,70 @@ impl Engine {
     }
 }
 
-fn any_lines_to_clear(pile: &[[Cell; PILE_WIDTH]; PILE_HEIGHT]) -> bool {
-    for row in pile {
-        let mut full = true;
-        for cell in row {
-            if cell.is_none() {
-                full = false;
-                break;
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Pile(#[serde(with = "serde_big_array::BigArray")] pub [[Cell; PILE_WIDTH]; PILE_HEIGHT]);
+
+impl Pile {
+    fn new() -> Pile {
+        Pile([[None; PILE_WIDTH]; PILE_HEIGHT])
+    }
+
+    fn any_lines_to_clear(&self) -> bool {
+        for row in self.0 {
+            let mut full = true;
+            for cell in row {
+                if cell.is_none() {
+                    full = false;
+                    break;
+                }
+            }
+
+            if full {
+                return true;
             }
         }
 
-        if full {
-            return true;
+        false
+    }
+
+    fn line_clear(&mut self) {
+        for row in (0..PILE_HEIGHT).rev() {
+            let mut full = true;
+            for cell in &self.0[row] {
+                if cell.is_none() {
+                    full = false;
+                    break;
+                }
+            }
+
+            if !full {
+                continue;
+            }
+
+            for ripple in row..PILE_HEIGHT - 1 {
+                for cell in 0..PILE_WIDTH {
+                    self.0[ripple][cell] = self.0[ripple + 1][cell];
+                }
+            }
+
+            for cell in 0..PILE_WIDTH {
+                self.0[PILE_HEIGHT - 1][cell] = None;
+            }
         }
     }
 
-    false
-}
+    fn check_collision(&self, blocks: &[(i32, i32)]) -> bool {
+        for &(x, y) in blocks {
+            if x < 0 || x >= PILE_WIDTH as i32 || y < 0 || y >= PILE_HEIGHT as i32 {
+                return true;
+            }
 
-fn line_clear(pile: &mut [[Cell; PILE_WIDTH]; PILE_HEIGHT]) {
-    for row in (0..PILE_HEIGHT).rev() {
-        let mut full = true;
-        for cell in &pile[row] {
-            if cell.is_none() {
-                full = false;
-                break;
+            if self.0[y as usize][x as usize].is_some() {
+                return true;
             }
         }
 
-        if !full {
-            continue;
-        }
-
-        for ripple in row..PILE_HEIGHT - 1 {
-            for cell in 0..PILE_WIDTH {
-                pile[ripple][cell] = pile[ripple + 1][cell];
-            }
-        }
-
-        for cell in 0..PILE_WIDTH {
-            pile[PILE_HEIGHT - 1][cell] = None;
-        }
+        false
     }
 }
 
@@ -549,13 +571,13 @@ impl Piece {
             .map(|(bx, by)| (self.x + bx, self.y + by));
     }
 
-    fn update_ghost(&mut self, pile: &[[Cell; 10]; 40]) {
+    fn update_ghost(&mut self, pile: &Pile) {
         let mut ghost_piece = self.clone();
         loop {
             let mut branched_piece = ghost_piece.clone();
             branched_piece.y -= 1;
             branched_piece.update_blocks();
-            if !check_collision(pile, &branched_piece.blocks) {
+            if !pile.check_collision(&branched_piece.blocks) {
                 ghost_piece = branched_piece;
             } else {
                 break;
@@ -564,21 +586,4 @@ impl Piece {
         self.ghost_y = ghost_piece.y;
         self.ghost_blocks = ghost_piece.blocks;
     }
-}
-
-fn check_collision(
-    pile: &[[Cell; PILE_WIDTH]; PILE_HEIGHT],
-    blocks: &[(i32, i32)],
-) -> bool {
-    for &(x, y) in blocks {
-        if x < 0 || x >= PILE_WIDTH as i32 || y < 0 || y >= PILE_HEIGHT as i32 {
-            return true;
-        }
-
-        if pile[y as usize][x as usize].is_some() {
-            return true;
-        }
-    }
-
-    false
 }

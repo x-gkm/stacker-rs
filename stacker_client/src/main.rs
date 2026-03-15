@@ -32,7 +32,7 @@ async fn main() {
         let offset_x = (screen_width() - PILE_WIDTH as f32 * BLOCK_SIZE) / 2.;
         let offset_y = (screen_height() - GRID_HEIGHT as f32 * BLOCK_SIZE) / 2.;
 
-        for (y, row) in engine.pile.iter().enumerate() {
+        for (y, row) in engine.pile.0.iter().enumerate() {
             for (x, &block) in row.iter().enumerate() {
                 let block_x = offset_x + x as f32 * BLOCK_SIZE;
                 let block_y = offset_y + (GRID_HEIGHT - y as i32 - 1) as f32 * BLOCK_SIZE;

@@ -23,12 +23,12 @@ struct GameConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PieceKind {
     I,
-    O,
-    T,
-    L,
-    Z,
     J,
+    L,
+    O,
     S,
+    T,
+    Z,
 }
 
 impl PieceKind {
@@ -39,35 +39,35 @@ impl PieceKind {
             (PieceKind::I, Orientation::S) => [(0, 0), (-2, 0), (-1, 0), (1, 0)],
             (PieceKind::I, Orientation::W) => [(0, 0), (0, -1), (0, 1), (0, 2)],
 
-            (PieceKind::O, Orientation::N) => [(0, 0), (0, 1), (1, 1), (1, 0)],
-            (PieceKind::O, Orientation::E) => [(0, 0), (0, -1), (1, -1), (1, 0)],
-            (PieceKind::O, Orientation::S) => [(0, 0), (0, -1), (-1, -1), (-1, 0)],
-            (PieceKind::O, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (-1, 0)],
-
-            (PieceKind::T, Orientation::N) => [(0, 0), (-1, 0), (0, 1), (1, 0)],
-            (PieceKind::T, Orientation::E) => [(0, 0), (0, 1), (1, 0), (0, -1)],
-            (PieceKind::T, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, 0)],
-            (PieceKind::T, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (0, -1)],
+            (PieceKind::J, Orientation::N) => [(0, 0), (-1, 0), (-1, 1), (1, 0)],
+            (PieceKind::J, Orientation::E) => [(0, 0), (0, 1), (1, 1), (0, -1)],
+            (PieceKind::J, Orientation::S) => [(0, 0), (-1, 0), (1, -1), (1, 0)],
+            (PieceKind::J, Orientation::W) => [(0, 0), (0, 1), (-1, -1), (0, -1)],
 
             (PieceKind::L, Orientation::N) => [(0, 0), (-1, 0), (1, 1), (1, 0)],
             (PieceKind::L, Orientation::E) => [(0, 0), (0, 1), (1, -1), (0, -1)],
             (PieceKind::L, Orientation::S) => [(0, 0), (-1, 0), (-1, -1), (1, 0)],
             (PieceKind::L, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (0, -1)],
 
-            (PieceKind::Z, Orientation::N) => [(0, 0), (-1, 1), (0, 1), (1, 0)],
-            (PieceKind::Z, Orientation::E) => [(0, 0), (1, 1), (1, 0), (0, -1)],
-            (PieceKind::Z, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, -1)],
-            (PieceKind::Z, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (-1, -1)],
-
-            (PieceKind::J, Orientation::N) => [(0, 0), (-1, 0), (-1, 1), (1, 0)],
-            (PieceKind::J, Orientation::E) => [(0, 0), (0, 1), (1, 1), (0, -1)],
-            (PieceKind::J, Orientation::S) => [(0, 0), (-1, 0), (1, -1), (1, 0)],
-            (PieceKind::J, Orientation::W) => [(0, 0), (0, 1), (-1, -1), (0, -1)],
+            (PieceKind::O, Orientation::N) => [(0, 0), (0, 1), (1, 1), (1, 0)],
+            (PieceKind::O, Orientation::E) => [(0, 0), (0, -1), (1, -1), (1, 0)],
+            (PieceKind::O, Orientation::S) => [(0, 0), (0, -1), (-1, -1), (-1, 0)],
+            (PieceKind::O, Orientation::W) => [(0, 0), (0, 1), (-1, 1), (-1, 0)],
 
             (PieceKind::S, Orientation::N) => [(0, 0), (1, 1), (0, 1), (-1, 0)],
             (PieceKind::S, Orientation::E) => [(0, 0), (1, -1), (1, 0), (0, 1)],
             (PieceKind::S, Orientation::S) => [(0, 0), (1, 0), (0, -1), (-1, -1)],
             (PieceKind::S, Orientation::W) => [(0, 0), (0, -1), (-1, 0), (-1, 1)],
+
+            (PieceKind::T, Orientation::N) => [(0, 0), (-1, 0), (0, 1), (1, 0)],
+            (PieceKind::T, Orientation::E) => [(0, 0), (0, 1), (1, 0), (0, -1)],
+            (PieceKind::T, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, 0)],
+            (PieceKind::T, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (0, -1)],
+
+            (PieceKind::Z, Orientation::N) => [(0, 0), (-1, 1), (0, 1), (1, 0)],
+            (PieceKind::Z, Orientation::E) => [(0, 0), (1, 1), (1, 0), (0, -1)],
+            (PieceKind::Z, Orientation::S) => [(0, 0), (-1, 0), (0, -1), (1, -1)],
+            (PieceKind::Z, Orientation::W) => [(0, 0), (0, 1), (-1, 0), (-1, -1)],
         }
     }
 }
@@ -152,7 +152,7 @@ impl NextQueue {
     }
     fn add_bag(&mut self) {
         use PieceKind::*;
-        let mut bag = [I, O, T, L, Z, J, S];
+        let mut bag = [I, J, L, O, S, T, Z];
         bag.shuffle(&mut self.rng);
         self.pieces.extend(bag);
     }

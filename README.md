@@ -12,11 +12,11 @@ Things left to implement:
 - [x] Kicks
 - [x] Next queue
 - [x] Hold
-- [ ] Input buffering
 - [ ] 0 ARR support
 - [ ] Forced lock
 - [ ] Block out
 - [ ] Top out
-- [ ] Back to back
 - [ ] Combos
+- [ ] Back to back
 - [ ] T-spins
+- [ ] Input buffering

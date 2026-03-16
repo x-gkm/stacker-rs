@@ -399,6 +399,38 @@ impl Engine {
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
+        // line_clear should be called before spawn so that the ghost piece isn't floating.
+        if self.line_clear_timer.tick() {
+            self.pile.line_clear();
+        }
+        if self.spawn_timer.tick() {
+            let piece = self.next_queue.pull();
+            self.spawn(piece);
+        }
+        if self.fall_timer.tick() {
+            self.fall();
+            self.set_fall_timer();
+        }
+        if self.das_timer.tick() {
+            let direction = self.movement.das.unwrap();
+            self.do_move(direction);
+            if self.config.arr > 0 {
+                self.das_timer.set(self.config.arr);
+            } else {
+                self.das_timer.set(1);
+                loop {
+                    if let Some(piece) = self.can_move(direction.offset(), 0, 0) {
+                        self.set_active(Some(piece));
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        if self.lock_timer.tick() {
+            self.try_lock();
+        }
+
         for input in frame_inputs {
             use Action::*;
             use Direction::*;
@@ -474,38 +506,6 @@ impl Engine {
                 }
                 _ => (),
             }
-        }
-
-        // line_clear should be called before spawn so that the ghost piece isn't floating.
-        if self.line_clear_timer.tick() {
-            self.pile.line_clear();
-        }
-        if self.spawn_timer.tick() {
-            let piece = self.next_queue.pull();
-            self.spawn(piece);
-        }
-        if self.fall_timer.tick() {
-            self.fall();
-            self.set_fall_timer();
-        }
-        if self.das_timer.tick() {
-            let direction = self.movement.das.unwrap();
-            self.do_move(direction);
-            if self.config.arr > 0 {
-                self.das_timer.set(self.config.arr);
-            } else {
-                self.das_timer.set(1);
-                loop {
-                    if let Some(piece) = self.can_move(direction.offset(), 0, 0) {
-                        self.set_active(Some(piece));
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-        if self.lock_timer.tick() {
-            self.try_lock();
         }
     }
 

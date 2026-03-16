@@ -85,16 +85,18 @@ pub enum Orientation {
 }
 
 impl Orientation {
-    fn rotate_cw(&mut self, n: i32) {
+    fn rotate_cw(&self, n: i32) -> Orientation {
+        let mut result = *self;
         for _ in 0..n {
             use Orientation::*;
-            *self = match self {
+            result = match result {
                 N => E,
                 E => S,
                 S => W,
                 W => N,
             }
         }
+        result
     }
 }
 
@@ -244,16 +246,16 @@ impl Engine {
             return;
         };
 
-        let mut branched = active_piece.changed_by(0, 0, count);
+        let new_orientation = active_piece.orientation.rotate_cw(count);
 
         for n in 0..5 {
             let (kick_x, kick_y) = kick_offset(
                 active_piece.kind,
                 active_piece.orientation,
-                branched.orientation,
+                new_orientation,
                 n,
             );
-            branched = active_piece.changed_by(kick_x, kick_y, count);
+            let branched = active_piece.changed_by(kick_x, kick_y, count);
             if !self.pile.check_collision(&branched.blocks) {
                 self.set_active(Some(branched));
                 break;
@@ -596,7 +598,7 @@ impl Piece {
 
         branched.x += dx;
         branched.y += dy;
-        branched.orientation.rotate_cw(rotate_cw);
+        branched.orientation = branched.orientation.rotate_cw(rotate_cw);
 
         branched.update_blocks();
 

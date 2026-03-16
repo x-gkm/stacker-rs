@@ -122,6 +122,15 @@ pub enum Direction {
     Right,
 }
 
+impl Direction {
+    fn offset(&self) -> i32 {
+        match self {
+            Direction::Left => -1,
+            Direction::Right => 1,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct MovementState {
     das: Option<Direction>,
@@ -255,9 +264,8 @@ impl Engine {
                 new_orientation,
                 n,
             );
-            let branched = active_piece.changed_by(kick_x, kick_y, count);
-            if !self.pile.check_collision(&branched.blocks) {
-                self.set_active(Some(branched));
+            if let Some(piece) = self.can_move(kick_x, kick_y, count) {
+                self.set_active(Some(piece));
                 break;
             }
         }
@@ -287,17 +295,12 @@ impl Engine {
         }
     }
 
-    fn can_move(&self, direction: Direction) -> Option<Piece> {
+    fn can_move(&self, dx: i32, dy: i32, rotate_cw: i32) -> Option<Piece> {
         let Some(ref active_piece) = self.active_piece else {
             return None;
         };
 
-        let dx = match direction {
-            Direction::Left => -1,
-            Direction::Right => 1,
-        };
-
-        let branched = active_piece.changed_by(dx, 0, 0);
+        let branched = active_piece.changed_by(dx, dy, rotate_cw);
         if self.pile.check_collision(&branched.blocks) {
             return None;
         }
@@ -306,7 +309,7 @@ impl Engine {
     }
 
     fn do_move(&mut self, direction: Direction) {
-        let Some(piece) = self.can_move(direction) else {
+        let Some(piece) = self.can_move(direction.offset(), 0, 0) else {
             return;
         };
 
@@ -314,14 +317,11 @@ impl Engine {
     }
 
     fn fall(&mut self) {
-        let Some(ref active_piece) = self.active_piece else {
+        let Some(piece) = self.can_move(0, -1, 0) else {
             return;
         };
 
-        let branched = active_piece.changed_by(0, -1, 0);
-        if !self.pile.check_collision(&branched.blocks) {
-            self.set_active(Some(branched));
-        }
+        self.set_active(Some(piece));
     }
 
     fn set_fall_timer(&mut self) {
@@ -346,7 +346,13 @@ impl Engine {
         };
 
         self.active_piece = Some(piece);
-        self.ghost_piece = Some(self.pile.calculate_ghost(self.active_piece.as_ref().unwrap()));
+
+        for dy in 0.. {
+            let Some(branched) = self.can_move(0, -dy, 0) else {
+                break;
+            };
+            self.ghost_piece = Some(branched);
+        }
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
@@ -447,7 +453,7 @@ impl Engine {
             } else {
                 self.das_timer.set(1);
                 loop {
-                    if let Some(piece) = self.can_move(direction) {
+                    if let Some(piece) = self.can_move(direction.offset(), 0, 0) {
                         self.set_active(Some(piece));
                     } else {
                         break;
@@ -542,19 +548,6 @@ impl Pile {
         }
 
         false
-    }
-
-    fn calculate_ghost(&self, piece: &Piece) -> Piece {
-        let mut ghost_piece = piece.clone();
-        loop {
-            let branched = ghost_piece.changed_by(0, -1, 0);
-            if !self.check_collision(&branched.blocks) {
-                ghost_piece = branched;
-            } else {
-                break;
-            }
-        }
-        ghost_piece
     }
 }
 

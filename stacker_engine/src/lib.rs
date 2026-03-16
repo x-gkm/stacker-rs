@@ -222,6 +222,7 @@ pub struct Engine {
     fall_timer: Timer,
     das_timer: Timer,
     line_clear_timer: Timer,
+    lowest_y: i32,
 }
 
 impl Engine {
@@ -247,6 +248,7 @@ impl Engine {
             fall_timer: Timer::new(),
             das_timer: Timer::new(),
             line_clear_timer: Timer::new(),
+            lowest_y: 0,
         }
     }
 
@@ -336,6 +338,7 @@ impl Engine {
         self.set_active(Some(Piece::spawn(kind)));
         self.fall();
         self.set_fall_timer();
+        self.lowest_y = self.active_piece.as_ref().unwrap().lowest_y();
     }
 
     fn set_active(&mut self, piece: Option<Piece>) {
@@ -353,6 +356,10 @@ impl Engine {
             };
             self.ghost_piece = Some(branched);
         }
+
+        self.lowest_y = self
+            .lowest_y
+            .min(self.active_piece.as_ref().unwrap().lowest_y());
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
@@ -596,6 +603,10 @@ impl Piece {
         branched.update_blocks();
 
         branched
+    }
+
+    fn lowest_y(&self) -> i32 {
+        self.blocks.map(|(_, y)| y).iter().copied().min().unwrap()
     }
 }
 

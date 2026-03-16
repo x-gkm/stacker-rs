@@ -223,6 +223,8 @@ pub struct Engine {
     das_timer: Timer,
     line_clear_timer: Timer,
     lowest_y: i32,
+    resets: i32,
+    lock_timer: Timer,
 }
 
 impl Engine {
@@ -249,6 +251,8 @@ impl Engine {
             das_timer: Timer::new(),
             line_clear_timer: Timer::new(),
             lowest_y: 0,
+            resets: 0,
+            lock_timer: Timer::new(),
         }
     }
 
@@ -326,6 +330,15 @@ impl Engine {
         self.set_active(Some(piece));
     }
 
+    fn try_lock(&mut self) {
+        let Some(piece) = self.can_move(0, -1, 0) else {
+            self.lock_ghost();
+            return;
+        };
+
+        self.set_active(Some(piece));
+    }
+
     fn set_fall_timer(&mut self) {
         self.fall_timer.set(if self.movement.soft_dropping {
             self.config.softdrop
@@ -335,10 +348,12 @@ impl Engine {
     }
 
     fn spawn(&mut self, kind: PieceKind) {
+        // It is very important to set resets to zero *before* calling set_active.
+        self.resets = 0;
         self.set_active(Some(Piece::spawn(kind)));
+        self.lowest_y = self.active_piece.as_ref().unwrap().lowest_y();
         self.fall();
         self.set_fall_timer();
-        self.lowest_y = self.active_piece.as_ref().unwrap().lowest_y();
     }
 
     fn set_active(&mut self, piece: Option<Piece>) {
@@ -347,6 +362,9 @@ impl Engine {
             self.ghost_piece = None;
             return;
         };
+
+        let previous_piece = self.active_piece.clone();
+        let previous_lowest_y = self.lowest_y;
 
         self.active_piece = Some(piece);
 
@@ -360,6 +378,24 @@ impl Engine {
         self.lowest_y = self
             .lowest_y
             .min(self.active_piece.as_ref().unwrap().lowest_y());
+
+        if self.lowest_y < previous_lowest_y {
+            self.resets = 0;
+        }
+
+        if self.active_piece != previous_piece {
+            if self.can_move(0, -1, 0) == None {
+                self.lock_timer.set(30);
+            } else {
+                self.lock_timer.stop();
+            }
+        }
+
+        self.resets += 1;
+
+        if self.resets > 15 {
+            self.try_lock();
+        }
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
@@ -467,6 +503,9 @@ impl Engine {
                     }
                 }
             }
+        }
+        if self.lock_timer.tick() {
+            self.try_lock();
         }
     }
 

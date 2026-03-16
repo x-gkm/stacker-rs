@@ -13,7 +13,7 @@ Things left to implement:
 - [x] Next queue
 - [x] Hold
 - [x] 0 ARR support
-- [ ] Forced lock
+- [x] Forced lock
 - [ ] Block out
 - [ ] Top out
 - [ ] Combos

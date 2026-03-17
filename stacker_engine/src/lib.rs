@@ -216,6 +216,7 @@ pub struct FrameOutcome {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Engine {
+    frame: i32,
     pile: Pile,
     active_piece: Option<Piece>,
     ghost_piece: Option<Piece>,
@@ -244,6 +245,7 @@ impl Engine {
         spawn_timer.set(60);
 
         Engine {
+            frame: 0,
             pile: Pile::new(),
             active_piece: None,
             ghost_piece: None,
@@ -455,6 +457,8 @@ impl Engine {
             return;
         }
 
+        self.frame += 1;
+
         // line_clear should be called before spawn so that the ghost piece isn't floating.
         if self.line_clear_timer.tick() {
             self.pile.line_clear();
@@ -599,6 +603,10 @@ impl Engine {
 
     pub fn frame_outcome(&self) -> &FrameOutcome {
         &self.frame_outcome
+    }
+
+    pub fn frame(&self) -> i32 {
+        self.frame
     }
 
     pub fn game_over(&self) -> bool {

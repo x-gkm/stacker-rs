@@ -19,7 +19,7 @@ Things left to implement:
 - [x] Combos
 - [x] Back to back
 - [x] T-spins
-- [ ] Input buffering
+- [x] Input buffering
 - [ ] Garbage
 - [ ] Multiplayer server
 - [ ] Implement proper 180 kicks

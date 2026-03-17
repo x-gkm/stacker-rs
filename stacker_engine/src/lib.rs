@@ -214,6 +214,12 @@ pub struct FrameOutcome {
     pub tspin: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+struct BufferedInputs {
+    hold: bool,
+    rotation: i32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Engine {
     frame: i32,
@@ -236,6 +242,7 @@ pub struct Engine {
     back_to_back: Option<i32>,
     frame_outcome: FrameOutcome,
     last_input_was_rotate: bool,
+    buffered_inputs: BufferedInputs,
 }
 
 impl Engine {
@@ -270,11 +277,13 @@ impl Engine {
             back_to_back: None,
             frame_outcome: FrameOutcome { tspin: false },
             last_input_was_rotate: false,
+            buffered_inputs: Default::default(),
         }
     }
 
     fn rotate(&mut self, count: i32) {
         let Some(ref active_piece) = self.active_piece else {
+            self.buffered_inputs.rotation += count;
             return;
         };
 
@@ -434,7 +443,19 @@ impl Engine {
             return;
         }
         self.lowest_y = self.active_piece.as_ref().unwrap().lowest_y();
+
         self.fall();
+
+        if self.buffered_inputs.hold {
+            self.buffered_inputs.hold = false;
+            self.do_hold();
+        }
+
+        if self.buffered_inputs.rotation != 0 {
+            self.rotate(self.buffered_inputs.rotation);
+            self.buffered_inputs.rotation = 0;
+        }
+
         self.set_fall_timer();
     }
 
@@ -483,6 +504,23 @@ impl Engine {
         if self.resets > 15 {
             self.try_lock();
         }
+    }
+
+    fn do_hold(&mut self) {
+        let Some(ref mut active_piece) = self.active_piece else {
+            self.buffered_inputs.hold = true;
+            return;
+        };
+
+        let piece = match self.hold {
+            HoldPiece::Unlocked(piece) => piece,
+            HoldPiece::Empty => self.next_queue.pull(),
+            HoldPiece::Locked(..) => return,
+        };
+
+        self.hold = HoldPiece::Locked(active_piece.kind);
+        self.fall_timer.stop();
+        self.spawn(piece);
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
@@ -544,19 +582,7 @@ impl Engine {
                     self.rotate(3);
                 }
                 Begin(Hold) => {
-                    let Some(ref mut active_piece) = self.active_piece else {
-                        continue;
-                    };
-
-                    let piece = match self.hold {
-                        HoldPiece::Unlocked(piece) => piece,
-                        HoldPiece::Empty => self.next_queue.pull(),
-                        HoldPiece::Locked(..) => continue,
-                    };
-
-                    self.hold = HoldPiece::Locked(active_piece.kind);
-                    self.fall_timer.stop();
-                    self.spawn(piece);
+                    self.do_hold();
                 }
                 Begin(Harddrop) => {
                     self.lock_ghost();

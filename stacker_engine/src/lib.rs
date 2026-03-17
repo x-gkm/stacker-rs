@@ -226,6 +226,7 @@ pub struct Engine {
     resets: i32,
     lock_timer: Timer,
     game_over: bool,
+    combo: Option<i32>,
 }
 
 impl Engine {
@@ -255,6 +256,7 @@ impl Engine {
             resets: 0,
             lock_timer: Timer::new(),
             game_over: false,
+            combo: None,
         }
     }
 
@@ -303,8 +305,14 @@ impl Engine {
         if line_clear {
             self.line_clear_timer.set(self.config.clear_delay);
             self.spawn_timer.set(self.config.clear_delay);
+            if let Some(ref mut combo) = self.combo {
+                *combo += 1;
+            } else {
+                self.combo = Some(0);
+            }
         } else {
             self.spawn_timer.set(self.config.are);
+            self.combo = None;
         }
     }
 
@@ -545,6 +553,10 @@ impl Engine {
 
     pub fn pile(&self) -> &[[Cell; PILE_WIDTH]; PILE_HEIGHT] {
         &self.pile.0
+    }
+
+    pub fn combo(&self) -> i32 {
+        self.combo.unwrap_or(0)
     }
 
     pub fn game_over(&self) -> bool {

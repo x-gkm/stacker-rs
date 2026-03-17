@@ -16,7 +16,7 @@ Things left to implement:
 - [x] Forced lock
 - [x] Block out
 - [x] Top out
-- [ ] Combos
+- [x] Combos
 - [ ] Back to back
 - [ ] T-spins
 - [ ] Input buffering

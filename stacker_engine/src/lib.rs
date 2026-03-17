@@ -323,7 +323,12 @@ impl Engine {
         self.set_active(None);
         if lines_to_clear > 0 {
             self.line_clear_timer.set(self.config.clear_delay);
-            self.spawn_timer.set(self.config.clear_delay);
+            self.spawn_timer
+                .set(if self.config.clear_delay > self.config.are {
+                    self.config.clear_delay
+                } else {
+                    self.config.are
+                });
             if let Some(ref mut combo) = self.combo {
                 *combo += 1;
             } else {

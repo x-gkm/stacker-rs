@@ -31,7 +31,7 @@ pub enum PieceKind {
     Z,
 }
 
-type Coords = (i32, i32);
+pub type Coords = (i32, i32);
 
 impl PieceKind {
     pub fn blocks(self, orientation: Orientation) -> [Coords; 4] {

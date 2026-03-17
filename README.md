@@ -21,6 +21,8 @@ Things left to implement:
 - [x] T-spins
 - [x] Input buffering
 - [ ] Garbage
+- [ ] Add support for drawing multiple boards
 - [ ] Multiplayer server
+- [ ] Implement rollback
 - [ ] Implement proper 180 kicks
-- [ ] Proper client (iced, wgpu etc.)
+- [ ] Proper client (egui, wgpu etc.)

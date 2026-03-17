@@ -18,7 +18,7 @@ Things left to implement:
 - [x] Top out
 - [x] Combos
 - [x] Back to back
-- [ ] T-spins
+- [x] T-spins
 - [ ] Input buffering
 - [ ] Garbage
 - [ ] Multiplayer server

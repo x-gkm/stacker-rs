@@ -209,6 +209,11 @@ impl Timer {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct FrameOutcome {
+    pub tspin: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Engine {
     pile: Pile,
@@ -228,6 +233,8 @@ pub struct Engine {
     game_over: bool,
     combo: Option<i32>,
     back_to_back: Option<i32>,
+    frame_outcome: FrameOutcome,
+    last_input_was_rotate: bool,
 }
 
 impl Engine {
@@ -259,6 +266,8 @@ impl Engine {
             game_over: false,
             combo: None,
             back_to_back: None,
+            frame_outcome: FrameOutcome { tspin: false },
+            last_input_was_rotate: false,
         }
     }
 
@@ -266,6 +275,8 @@ impl Engine {
         let Some(ref active_piece) = self.active_piece else {
             return;
         };
+
+        self.last_input_was_rotate = true;
 
         let new_orientation = active_piece.orientation.rotate_cw(count);
 
@@ -302,6 +313,10 @@ impl Engine {
             self.hold = HoldPiece::Unlocked(piece);
         }
 
+        self.frame_outcome.tspin = self.last_input_was_rotate
+            && ghost_piece.kind == PieceKind::T
+            && self.pile.check_tspin(ghost_piece.x, ghost_piece.y);
+
         self.fall_timer.stop();
         self.set_active(None);
         if lines_to_clear > 0 {
@@ -312,7 +327,7 @@ impl Engine {
             } else {
                 self.combo = Some(0);
             }
-            if lines_to_clear == 4 {
+            if lines_to_clear == 4 || (lines_to_clear > 0 && self.frame_outcome.tspin) {
                 if let Some(ref mut back_to_back) = self.back_to_back {
                     *back_to_back += 1;
                 } else {
@@ -344,6 +359,8 @@ impl Engine {
         let Some(piece) = self.can_move(direction.offset(), 0, 0) else {
             return;
         };
+
+        self.last_input_was_rotate = false;
 
         self.set_active(Some(piece));
     }
@@ -432,6 +449,8 @@ impl Engine {
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
+        self.frame_outcome = Default::default();
+
         if self.game_over {
             return;
         }
@@ -472,6 +491,10 @@ impl Engine {
             use Action::*;
             use Direction::*;
             use Input::*;
+            self.last_input_was_rotate = match input {
+                Begin(Harddrop) | End(_) => self.last_input_was_rotate,
+                _ => false,
+            };
             match input {
                 Begin(Rotate(Right)) => {
                     self.rotate(1);
@@ -574,6 +597,10 @@ impl Engine {
         self.back_to_back.unwrap_or(0)
     }
 
+    pub fn frame_outcome(&self) -> &FrameOutcome {
+        &self.frame_outcome
+    }
+
     pub fn game_over(&self) -> bool {
         self.game_over
     }
@@ -632,18 +659,40 @@ impl Pile {
         }
     }
 
+    fn out_of_bounds(&self, x: i32, y: i32) -> bool {
+        x < 0 || x >= PILE_WIDTH as i32 || y < 0 || y >= PILE_HEIGHT as i32
+    }
+
+    fn has_block(&self, x: i32, y: i32) -> bool {
+        self.0[y as usize][x as usize].is_some()
+    }
+
     fn check_collision(&self, blocks: &[Coords]) -> bool {
         for &(x, y) in blocks {
-            if x < 0 || x >= PILE_WIDTH as i32 || y < 0 || y >= PILE_HEIGHT as i32 {
-                return true;
-            }
-
-            if self.0[y as usize][x as usize].is_some() {
+            if self.out_of_bounds(x, y) || self.has_block(x, y) {
                 return true;
             }
         }
 
         false
+    }
+
+    fn check_tspin(&self, x: i32, y: i32) -> bool {
+        let offsets = [
+            (x + 1, y + 1),
+            (x + 1, y - 1),
+            (x - 1, y + 1),
+            (x - 1, y - 1),
+        ];
+
+        let mut count = 0;
+        for (x, y) in offsets {
+            if self.out_of_bounds(x, y) || self.has_block(x, y) {
+                count += 1;
+            }
+        }
+
+        count >= 3
     }
 }
 

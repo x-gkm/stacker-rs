@@ -225,6 +225,7 @@ pub struct Engine {
     lowest_y: i32,
     resets: i32,
     lock_timer: Timer,
+    game_over: bool,
 }
 
 impl Engine {
@@ -253,6 +254,7 @@ impl Engine {
             lowest_y: 0,
             resets: 0,
             lock_timer: Timer::new(),
+            game_over: false,
         }
     }
 
@@ -351,6 +353,13 @@ impl Engine {
         // It is very important to set resets to zero *before* calling set_active.
         self.resets = 0;
         self.set_active(Some(Piece::spawn(kind)));
+        if self
+            .pile
+            .check_collision(&self.active_piece.as_ref().unwrap().blocks)
+        {
+            self.game_over = true;
+            return;
+        }
         self.lowest_y = self.active_piece.as_ref().unwrap().lowest_y();
         self.fall();
         self.set_fall_timer();
@@ -399,6 +408,10 @@ impl Engine {
     }
 
     pub fn update(&mut self, frame_inputs: &[Input]) {
+        if self.game_over {
+            return;
+        }
+
         // line_clear should be called before spawn so that the ghost piece isn't floating.
         if self.line_clear_timer.tick() {
             self.pile.line_clear();
@@ -527,6 +540,10 @@ impl Engine {
 
     pub fn pile(&self) -> &[[Cell; PILE_WIDTH]; PILE_HEIGHT] {
         &self.pile.0
+    }
+
+    pub fn game_over(&self) -> bool {
+        self.game_over
     }
 }
 

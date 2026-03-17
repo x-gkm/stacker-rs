@@ -2,7 +2,8 @@ use std::time::Instant;
 
 use macroquad::prelude::*;
 use stacker_engine::{
-    Action, Direction, Engine, GRID_HEIGHT, GameConfig, HoldPiece, Input, Orientation, PILE_WIDTH, PieceKind
+    Action, Direction, Engine, GRID_HEIGHT, GameConfig, HoldPiece, Input, Orientation, PILE_WIDTH,
+    PieceKind,
 };
 
 const BLOCK_SIZE: f32 = 25.;
@@ -48,7 +49,17 @@ async fn main() {
                 let block_y = offset_y + (GRID_HEIGHT - y as i32 - 1) as f32 * BLOCK_SIZE;
 
                 if let Some(piece) = block {
-                    draw_rectangle(block_x, block_y, BLOCK_SIZE, BLOCK_SIZE, piece_color(piece));
+                    draw_rectangle(
+                        block_x,
+                        block_y,
+                        BLOCK_SIZE,
+                        BLOCK_SIZE,
+                        if !engine.game_over() {
+                            piece_color(piece)
+                        } else {
+                            DARKGRAY
+                        },
+                    );
                 } else if y < GRID_HEIGHT as usize {
                     draw_rectangle_lines(block_x, block_y, BLOCK_SIZE, BLOCK_SIZE, 1., GRAY);
                 }
@@ -109,13 +120,7 @@ async fn main() {
                 let x = offset_x + x as f32 * BLOCK_SIZE;
                 let y = offset_y + (GRID_HEIGHT - y - 1) as f32 * BLOCK_SIZE;
 
-                draw_rectangle(
-                    x,
-                    y,
-                    BLOCK_SIZE,
-                    BLOCK_SIZE,
-                    piece_color(active_piece.kind),
-                );
+                draw_rectangle(x, y, BLOCK_SIZE, BLOCK_SIZE, piece_color(active_piece.kind));
             }
         }
 

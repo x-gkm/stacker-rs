@@ -14,7 +14,7 @@ Things left to implement:
 - [x] Hold
 - [x] 0 ARR support
 - [x] Forced lock
-- [ ] Block out
+- [x] Block out
 - [ ] Top out
 - [ ] Combos
 - [ ] Back to back

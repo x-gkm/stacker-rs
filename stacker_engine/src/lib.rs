@@ -284,6 +284,11 @@ impl Engine {
             return;
         };
 
+        if ghost_piece.lowest_y() >= GRID_HEIGHT {
+            self.game_over = true;
+            return;
+        }
+
         for (x, y) in ghost_piece.blocks {
             self.pile.0[y as usize][x as usize] = Some(ghost_piece.kind)
         }

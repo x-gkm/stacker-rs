@@ -15,7 +15,7 @@ Things left to implement:
 - [x] 0 ARR support
 - [x] Forced lock
 - [x] Block out
-- [ ] Top out
+- [x] Top out
 - [ ] Combos
 - [ ] Back to back
 - [ ] T-spins

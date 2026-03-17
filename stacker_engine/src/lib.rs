@@ -227,6 +227,7 @@ pub struct Engine {
     lock_timer: Timer,
     game_over: bool,
     combo: Option<i32>,
+    back_to_back: Option<i32>,
 }
 
 impl Engine {
@@ -257,6 +258,7 @@ impl Engine {
             lock_timer: Timer::new(),
             game_over: false,
             combo: None,
+            back_to_back: None,
         }
     }
 
@@ -294,7 +296,7 @@ impl Engine {
         for (x, y) in ghost_piece.blocks {
             self.pile.0[y as usize][x as usize] = Some(ghost_piece.kind)
         }
-        let line_clear = self.pile.any_lines_to_clear();
+        let lines_to_clear = self.pile.lines_to_clear();
 
         if let HoldPiece::Locked(piece) = self.hold {
             self.hold = HoldPiece::Unlocked(piece);
@@ -302,13 +304,22 @@ impl Engine {
 
         self.fall_timer.stop();
         self.set_active(None);
-        if line_clear {
+        if lines_to_clear > 0 {
             self.line_clear_timer.set(self.config.clear_delay);
             self.spawn_timer.set(self.config.clear_delay);
             if let Some(ref mut combo) = self.combo {
                 *combo += 1;
             } else {
                 self.combo = Some(0);
+            }
+            if lines_to_clear == 4 {
+                if let Some(ref mut back_to_back) = self.back_to_back {
+                    *back_to_back += 1;
+                } else {
+                    self.back_to_back = Some(0);
+                }
+            } else {
+                self.back_to_back = None;
             }
         } else {
             self.spawn_timer.set(self.config.are);
@@ -559,6 +570,10 @@ impl Engine {
         self.combo.unwrap_or(0)
     }
 
+    pub fn back_to_back(&self) -> i32 {
+        self.back_to_back.unwrap_or(0)
+    }
+
     pub fn game_over(&self) -> bool {
         self.game_over
     }
@@ -572,7 +587,8 @@ impl Pile {
         Pile([[None; PILE_WIDTH]; PILE_HEIGHT])
     }
 
-    fn any_lines_to_clear(&self) -> bool {
+    fn lines_to_clear(&self) -> i32 {
+        let mut count = 0;
         for row in self.0 {
             let mut full = true;
             for cell in row {
@@ -583,11 +599,11 @@ impl Pile {
             }
 
             if full {
-                return true;
+                count += 1;
             }
         }
 
-        false
+        count
     }
 
     fn line_clear(&mut self) {

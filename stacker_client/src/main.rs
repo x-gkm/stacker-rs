@@ -125,6 +125,7 @@ async fn main() {
         }
 
         draw_text(&format!("combo: {}", engine.combo()), 0., 100., 30., BLACK);
+        draw_text(&format!("back-to-back: {}", engine.back_to_back()), 0., 150., 30., BLACK);
 
         prev_time = time;
         next_frame().await;

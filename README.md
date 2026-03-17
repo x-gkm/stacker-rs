@@ -17,7 +17,7 @@ Things left to implement:
 - [x] Block out
 - [x] Top out
 - [x] Combos
-- [ ] Back to back
+- [x] Back to back
 - [ ] T-spins
 - [ ] Input buffering
 - [ ] Garbage

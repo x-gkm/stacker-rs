@@ -256,6 +256,8 @@ pub struct Engine {
 }
 
 impl Engine {
+    pub const FPS: i32 = 60;
+
     pub fn new(seed: u64, config: GameConfig) -> Engine {
         let mut spawn_timer = Timer::new();
 

@@ -2,8 +2,7 @@ use std::time::Instant;
 
 use macroquad::prelude::*;
 use stacker_engine::{
-    Action, Cell, Direction, Engine, GRID_HEIGHT, GameConfig, HoldPiece, Input, Orientation,
-    PILE_WIDTH, PieceKind,
+    Action, Cell, Coords, Direction, Engine, GRID_HEIGHT, GameConfig, HoldPiece, Input, PILE_WIDTH, Piece, PieceKind
 };
 
 const BLOCK_SIZE: f32 = 25.;
@@ -79,7 +78,7 @@ async fn main() {
         }
 
         if let HoldPiece::Locked(piece) | HoldPiece::Unlocked(piece) = engine.hold() {
-            for (x, y) in piece.blocks(Orientation::N) {
+            for (x, y) in piece_blocks(*piece) {
                 let x = offset_x + (x - 4) as f32 * BLOCK_SIZE;
                 let y = offset_y + (GRID_HEIGHT - y - 4 as i32 * 3 - 7) as f32 * BLOCK_SIZE;
 
@@ -98,7 +97,7 @@ async fn main() {
         }
 
         for (index, piece) in engine.next_queue().enumerate() {
-            for (x, y) in piece.blocks(Orientation::N) {
+            for (x, y) in piece_blocks(piece) {
                 let x = offset_x + (x + 12) as f32 * BLOCK_SIZE;
                 let y =
                     offset_y + (GRID_HEIGHT - y - (4 - index) as i32 * 3 - 7) as f32 * BLOCK_SIZE;
@@ -183,4 +182,13 @@ fn piece_color(piece: PieceKind) -> Color {
         PieceKind::J => BLUE,
         PieceKind::S => GREEN,
     }
+}
+
+fn piece_blocks(piece: PieceKind) -> [Coords; 4] {
+    let blocks = Piece::spawn(piece).blocks;
+
+    let min_x = blocks.map(|(x, _y)| x).iter().copied().min().unwrap();
+    let min_y = blocks.map(|(_x, y)| y).iter().copied().min().unwrap();
+
+    blocks.map(|(x, y)| (x - min_x, y - min_y))
 }

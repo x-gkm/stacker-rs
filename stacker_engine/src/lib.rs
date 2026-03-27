@@ -34,7 +34,7 @@ pub enum PieceKind {
 pub type Coords = (i32, i32);
 
 impl PieceKind {
-    pub fn blocks(self, orientation: Orientation) -> [Coords; 4] {
+    fn blocks(self, orientation: Orientation) -> [Coords; 4] {
         match (self, orientation) {
             (PieceKind::I, Orientation::N) => [(0, 0), (-1, 0), (1, 0), (2, 0)],
             (PieceKind::I, Orientation::E) => [(0, 0), (0, -2), (0, -1), (0, 1)],
@@ -806,7 +806,7 @@ pub struct Piece {
 }
 
 impl Piece {
-    fn spawn(kind: PieceKind) -> Piece {
+    pub fn spawn(kind: PieceKind) -> Piece {
         let x = PILE_WIDTH as i32 / 2 - 1;
         let y = GRID_HEIGHT + 2;
         let orientation = Orientation::N;
